@@ -1,6 +1,3 @@
-<!-- AIND KICKSTART DRAFT — intended design captured in conversation, NOT yet validated against
-     code. Review and correct before relying on it; re-run /aind:onboard once code exists to
-     reconcile. Suggestions, not ground truth. -->
 ---
 name: build
 description: Build the devops-organizer front-end (type-check + Vite production build). Use to verify a change compiles cleanly.
@@ -9,11 +6,12 @@ allowed-tools: Bash
 
 # Build
 
-> **STUB — TODO: verify once the toolchain exists.** No `package.json` yet; the command
-> below is the *intended* build and has not been run.
+The `build` script is defined in `package.json`: `tsc -b && vite build` (verified 2026-07-08).
 
 ```bash
-npm run build   # expected: tsc + vite build
+npm run build   # tsc -b (project references: tsconfig.app.json + tsconfig.node.json) then vite build
 ```
 
-Done = the build completes with no TypeScript or Vite errors.
+- Type-checks via TypeScript project references (`tsconfig.json` → `tsconfig.app.json` +
+  `tsconfig.node.json`), then produces the production bundle in `dist/` (gitignored).
+- Done = the build completes with no TypeScript or Vite errors.

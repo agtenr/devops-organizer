@@ -46,13 +46,13 @@ e.g. `source .claude/aind.env` (copy `aind.env.sample`, keep the PAT out of git)
   (max ~100 emails). See `@rules/frontend-architecture.md`.
 - **Branch naming:** `type/id-slug` tied to the ADO story ID —
   e.g. `feature/123-customer-tabs`, `fix/130-counter-bug`. Integration branch is `main`.
-- **Build / run / test commands:** see the stubbed skills in `.claude/skills/`
-  (`build`, `run-app`, `test`, `lint`, `e2e`) — commands are *intended* and unverified
-  until the toolchain is scaffolded.
+- **Build / run / test commands:** see the skills in `.claude/skills/`
+  (`build`, `run-app`, `test`, `lint`, `e2e`) — commands are defined in `package.json`
+  and verified against the scaffolded toolchain (story 29).
 
 ### Open prerequisites / TODOs (greenfield)
 - **Deployment:** local-only for now (`npm run dev` / local build). No hosting target and
   no CI/CD pipeline decided yet — revisit if the app is ever published.
 - **CI/CD:** none configured yet.
-- Re-run **`/aind:onboard`** once real code exists to reconcile these drafts against the
-  actual codebase.
+- Toolchain drafts were reconciled against the real codebase via **`/aind:onboard`**
+  (2026-07-08); re-run it after major structural changes.
