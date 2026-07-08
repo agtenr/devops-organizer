@@ -9,12 +9,15 @@ allowed-tools: Bash
 
 # Lint & format
 
-> **STUB — TODO: verify once the toolchain exists.** No `package.json` yet; the commands
-> below are the *intended* lint/format commands and have not been run.
+> The scripts below are defined in `package.json` (`lint`, `format`, `format:check`).
 
 ```bash
-npm run lint     # expected: ESLint (typescript-eslint + react-hooks)
-npm run format   # expected: Prettier (add --check in CI)
+npm run lint          # ESLint (typescript-eslint + react-hooks)
+npm run format:check  # Prettier in check mode (non-mutating) — this is the "done" gate
 ```
 
-Done = no ESLint errors and Prettier reports no changes needed.
+Done = `npm run lint` reports no ESLint errors AND `npm run format:check` reports no
+changes needed (both commands exit 0).
+
+To *fix* formatting rather than just check it, run `npm run format` (Prettier `--write`,
+rewrites files). Use `format` to repair, then re-run `format:check` to confirm.
