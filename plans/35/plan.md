@@ -97,21 +97,19 @@ Concrete files:
    "what done looks like".
 
 ## Assumptions & open questions
-- **Positioning = `position: sticky; top: 0`, not literal `position: fixed`.** The AC says "fixed",
-  but `sticky` achieves the required behavior ("doesn't scroll with the page") while keeping the bar
-  in normal flow, so growing content below needs no manual top-offset (a `fixed` bar is removed from
-  flow and would overlap the first content unless every following section is padded). I proceed with
-  `sticky`; if you want the literal `fixed` semantics, say so and I'll switch (and add the content
-  offset).
-- **Sign-out control stays a Fluent `Button`, not a `Link`.** The story description says "sign-out
-  *link*" while the ACs say "sign-out *button*"; sign-out is an action (not navigation), so a
-  `Button` is the accessibility-correct element. If you want it to *look* like a link, I'll use
-  `appearance="transparent"`/`"subtle"` — still a button semantically. Flag if you disagree.
-- **Fixing the red baseline suite is folded into this story.** `App.test.tsx` + `e2e/smoke.spec.ts`
-  assert the removed story-29 hello-world and fail at HEAD; I repair them here (delete the dead App
-  assertion, repoint the smoke to the redirect check) because story 35's DoD needs a green suite.
-  Alternative: split this into a separate chore/story — tell me if you'd rather I not touch the
-  scaffold tests here.
+All three open questions were ratified in plan review (PR #8) — the reviewer accepted every proposed
+option. Recorded here as settled decisions; no open questions remain.
+- **Positioning = `position: sticky; top: 0`, not literal `position: fixed` — resolved (review).**
+  `sticky` achieves the required behavior ("doesn't scroll with the page") while keeping the bar in
+  normal flow, so growing content below needs no manual top-offset (a `fixed` bar is removed from
+  flow and would overlap the first content unless every following section is padded).
+- **Sign-out control stays a Fluent `Button`, not a `Link` — resolved (review).** The description
+  says "sign-out *link*" and the ACs say "sign-out *button*"; sign-out is an action (not navigation),
+  so a `Button` is the accessibility-correct element. (Link-style appearance was not requested.)
+- **Fixing the red baseline suite is folded into this story — resolved (review).**
+  `App.test.tsx` + `e2e/smoke.spec.ts` assert the removed story-29 hello-world and fail at HEAD; they
+  are repaired here (delete the dead App assertion, repoint the smoke to the redirect check) because
+  story 35's DoD needs a green suite — rather than split into a separate chore.
 
 ## Considerations
 - **Title is a semantic `<h1>`** (accessible `heading` role) — chosen for a11y and so the unit/E2E
