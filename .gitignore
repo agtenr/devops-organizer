@@ -9,3 +9,8 @@
 # Node
 node_modules/
 dist/
+
+# Test / build artifacts
+coverage/
+playwright-report/
+test-results/
