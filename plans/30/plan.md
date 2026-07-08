@@ -120,29 +120,29 @@ Dependencies to add (exact-pinned, `npm install --save-exact`): `@azure/msal-bro
     skills' "done" bars + `.claude/rules/authentication.md` invariants.
 
 ## Assumptions & open questions
-- **Token cache location = `localStorage`.** Chosen over `sessionStorage` because the AC requires the
-  session be *remembered across browser sessions*; `sessionStorage` is cleared when the tab/browser
-  closes. Trade-off: `localStorage` token storage has a wider XSS exposure surface. Reviewer: accept
-  `localStorage`, or prefer `sessionStorage` and relax the "remembered across sessions" AC?
-- **Login scopes = default OIDC only (no `Mail.Read` yet).** Sign-in requests only the implicit
-  `openid`/`profile` scopes and reads the display name from the ID-token `name` claim, so no Graph
-  client and no mail scope are added in this story (least privilege). Reviewer: OK to defer
-  `Mail.Read` to the mail-reading story, or request it now at first sign-in to pre-consent?
-- **`.env.sample` scope.** Adds only `VITE_ENTRA_CLIENT_ID` + `VITE_ENTRA_TENANT_ID` now;
-  `VITE_MAIL_FOLDER` is deferred to the mail story since nothing reads it yet. Reviewer: include
-  `VITE_MAIL_FOLDER` up front for completeness instead?
-- **Auth-gating mechanism = `MsalAuthenticationTemplate` (Redirect).** Auto-initiates the redirect
-  for unauthenticated users and supplies the loading/error components, matching the story's
-  "automatically redirected" flow — rather than a manual "Sign in" button + `useMsalAuthentication`.
-  Reviewer: prefer an explicit sign-in button instead of an automatic redirect on load?
-- **New folder layout: `src/auth/` (config) + `src/components/` (TopBar/AuthError/AuthLoading).**
-  Introduces a `components/` grouping alongside the existing `src/App/`. Reviewer: keep the new
-  components directly under `src/App/` instead of a new `components/` grouping?
-- **Automated E2E scope.** Playwright will assert only that an unauthenticated visit *initiates* the
-  Entra redirect (URL leaves the app toward `login.microsoftonline.com`); the full credentialed
-  round-trip is verified **manually** because scripting a real org login (with MFA) in the harness is
-  fragile and unsafe. Reviewer: accept manual verification for the full flow, or invest in a
-  Playwright login fixture with a test account?
+All open questions were ratified in plan review (PR #5) — the reviewer accepted every proposed
+option. Recorded here as settled decisions; no open questions remain.
+- **Token cache location = `localStorage` — resolved (review).** Chosen over `sessionStorage` because
+  the AC requires the session be *remembered across browser sessions* (`sessionStorage` is cleared
+  when the tab/browser closes). Accepted trade-off: `localStorage` token storage has a wider XSS
+  exposure surface.
+- **Login scopes = default OIDC only (no `Mail.Read` yet) — resolved (review).** Sign-in requests only
+  the implicit `openid`/`profile` scopes and reads the display name from the ID-token `name` claim, so
+  no Graph client and no mail scope are added in this story (least privilege); `Mail.Read` is deferred
+  to the mail-reading story.
+- **`.env.sample` scope — resolved (review).** Adds only `VITE_ENTRA_CLIENT_ID` +
+  `VITE_ENTRA_TENANT_ID` now; `VITE_MAIL_FOLDER` is deferred to the mail story since nothing reads it
+  yet.
+- **Auth-gating mechanism = `MsalAuthenticationTemplate` (Redirect) — resolved (review).**
+  Auto-initiates the redirect for unauthenticated users and supplies the loading/error components,
+  matching the story's "automatically redirected" flow — rather than a manual "Sign in" button +
+  `useMsalAuthentication`.
+- **New folder layout: `src/auth/` (config) + `src/components/` (TopBar/AuthError/AuthLoading) —
+  resolved (review).** Introduces a `components/` grouping alongside the existing `src/App/`.
+- **Automated E2E scope — resolved (review).** Playwright asserts only that an unauthenticated visit
+  *initiates* the Entra redirect (URL leaves the app toward `login.microsoftonline.com`); the full
+  credentialed round-trip is verified **manually** because scripting a real org login (with MFA) in
+  the harness is fragile and unsafe.
 
 ## Considerations
 - **App-registration redirect URI (prerequisite, human/admin).** The existing app registration
