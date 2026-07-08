@@ -27,8 +27,8 @@ This is a fetch-and-dump spike, not the mail feature. Concrete non-goals:
   **not** introduce an `Email` model, DTO, or field mapping yet (that arrives with categorization).
 - **No persistence, caching, or pagination UI.** In-memory only, fetched once on load, bounded
   (~100 messages) per `.claude/rules/frontend-architecture.md`.
-- **No broadening of the login flow.** Login scopes stay OIDC-only; `Mail.Read` is requested
-  **incrementally** at fetch time, not added to the sign-in request.
+- **No write or broader Graph scopes.** Only read-only `Mail.Read` is added to the existing
+  sign-in request; no `Mail.ReadWrite`, `Mail.Send`, or other Graph permissions.
 - **No retry/backoff, throttling handling, or delta sync.** A single fetch on load with a plain
   error surface is sufficient for a debug spike.
 
@@ -37,13 +37,16 @@ Add a **Graph client factory** and a **mail service**, then a **temporary debug 
 calls the service on mount and renders the raw result. Wire the debug component into the
 authenticated area of `App` (below `<TopBar />`).
 
-Token acquisition reuses the existing singleton `msalInstance` (`src/auth/msalConfig.ts`). The
-sanctioned browser integration is the Graph SDK's **`AuthCodeMSALBrowserAuthenticationProvider`**
-(from `@microsoft/microsoft-graph-client/authProviders/authCodeMsalBrowser`), which wraps MSAL and
-does `acquireTokenSilent` with an interactive fallback. Because `Mail.Read` was **not** consented
-at sign-in (login uses OIDC-only scopes), the *first* fetch triggers an incremental-consent
-interaction; we use the same **redirect** interaction type the app already uses everywhere, so no
-popup is introduced.
+**Consent once at sign-in, silent thereafter (per review).** Add `Mail.Read` to the existing
+`loginRequest` in `src/auth/msalConfig.ts`, so the user consents to it as part of the normal
+sign-in the app already runs (the app's `MsalAuthenticationTemplate` uses `loginRequest`). Token
+acquisition then reuses the existing singleton `msalInstance` via a **hand-rolled auth provider
+that calls `acquireTokenSilent({ scopes: ['Mail.Read'], account })`** and returns the access
+token — no per-fetch consent, no popup, minimal user involvement. As the MSAL-standard safety net,
+if `acquireTokenSilent` throws `InteractionRequiredAuthError` (e.g. the cached refresh token has
+expired and can't be renewed silently), fall back to `acquireTokenRedirect` — consistent with the
+app's redirect-only stance. In the normal path the token comes from MSAL's cache and no
+interaction occurs.
 
 `DevOps` is a **custom** (non-well-known) folder, so the `/me/mailFolders('DevOps')` well-known
 shortcut does not apply. Resolve the folder id first via
@@ -51,10 +54,14 @@ shortcut does not apply. Resolve the folder id first via
 fields the story needs and **paging until exhausted** so "all" is honoured.
 
 Concrete files:
+- **`src/auth/msalConfig.ts`** *(changed)* — add `Mail.Read` to `loginRequest.scopes` (currently
+  `[]`), so mail consent is folded into the existing sign-in. This is the one place the mail scope
+  is named for the login request.
 - **`src/services/graph/graphClient.ts`** *(new)* — `createGraphClient(account: AccountInfo): Client`.
-  Builds an `AuthCodeMSALBrowserAuthenticationProvider` over the imported `msalInstance` with
-  `{ account, scopes: ['Mail.Read'], interactionType: InteractionType.Redirect }`, and returns
-  `Client.initWithMiddleware({ authProvider })`. This is the one place the mail scope is named.
+  Defines a custom `AuthenticationProvider` whose `getAccessToken()` calls
+  `msalInstance.acquireTokenSilent({ scopes: ['Mail.Read'], account })` and returns
+  `result.accessToken`, catching `InteractionRequiredAuthError` to fall back to
+  `msalInstance.acquireTokenRedirect(...)`. Returns `Client.initWithMiddleware({ authProvider })`.
 - **`src/services/mail/mailService.ts`** *(new)* — `fetchMailFromFolder(client: Client, folderName: string): Promise<Message[]>`.
   (1) resolve folder id via `.api('/me/mailFolders').filter(\`displayName eq '${folderName}'\`).select('id,displayName').get()`;
   (2) if no folder matches, throw a clear `Error` naming the folder; (3)
@@ -102,67 +109,76 @@ Dependencies to add (exact-pinned, `npm install --save-exact`):
    `src/vite-env.d.ts` and document `VITE_MAIL_FOLDER=DevOps` in `.env.sample` (`.env` stays
    gitignored). Rule: `.claude/rules/authentication.md` (VITE_* config, no hardcoded folder name),
    `.claude/rules/frontend-architecture.md`.
-3. **Create `src/services/graph/graphClient.ts`.** `createGraphClient(account)` wiring
-   `AuthCodeMSALBrowserAuthenticationProvider` over `msalInstance` with `Mail.Read` + redirect
-   interaction, returning `Client.initWithMiddleware`. Rules: `.claude/rules/authentication.md`
-   (Graph via MSAL token, least-privilege `Mail.Read`, tokens only in MSAL cache, no hardcoded
-   IDs), `.claude/rules/frontend-architecture.md` (service under `src/`, front-end only).
-4. **Create `src/services/mail/mailService.ts`.** `fetchMailFromFolder(client, folderName)`:
+3. **Add `Mail.Read` to the login request.** In `src/auth/msalConfig.ts` set
+   `loginRequest.scopes = ['Mail.Read']` (was `[]`), so mail consent is granted once during the
+   app's existing sign-in and later token acquisition is silent. Rule:
+   `.claude/rules/authentication.md` (least-privilege read-only mail scope; no hardcoded IDs).
+4. **Create `src/services/graph/graphClient.ts`.** `createGraphClient(account)` defining a custom
+   `AuthenticationProvider` whose `getAccessToken()` calls
+   `msalInstance.acquireTokenSilent({ scopes: ['Mail.Read'], account })` (returning
+   `accessToken`), catching `InteractionRequiredAuthError` to fall back to `acquireTokenRedirect`;
+   returns `Client.initWithMiddleware({ authProvider })`. Rules:
+   `.claude/rules/authentication.md` (Graph only via MSAL token, silent acquisition preferred over
+   interactive, tokens only in MSAL cache, no hardcoded IDs), `.claude/rules/frontend-architecture.md`
+   (service under `src/`, front-end only).
+5. **Create `src/services/mail/mailService.ts`.** `fetchMailFromFolder(client, folderName)`:
    resolve folder id by `displayName` filter, error clearly if absent, then page **all** messages
    via `PageIterator` selecting `subject,sender,from,body,receivedDateTime`; return raw
    `Message[]`. Rules: `.claude/rules/categorization-domain.md` (fetch is folder-scoped, in-memory;
    never crash/drop silently — surface a clear error), `.claude/rules/frontend-architecture.md`
    (fetch once on load, bounded set, logic in a service not a component).
-5. **Build the temporary `MailDebug` component + `useMailDebug` hook.** Hook reads the account
+6. **Build the temporary `MailDebug` component + `useMailDebug` hook.** Hook reads the account
    from `useMsal()`, builds the client, fetches on mount, exposes `{ status, messages, error }`;
    `.tsx` renders spinner / error / `<pre>` raw JSON. Mark clearly as temporary. Rule:
    `.claude/rules/frontend-architecture.md` (component-per-folder, logic-in-hook, Fluent UI).
-6. **Render `<MailDebug />` in `src/App/App.tsx`** below `<TopBar />` in the authenticated area.
+7. **Render `<MailDebug />` in `src/App/App.tsx`** below `<TopBar />` in the authenticated area.
    Rule: `.claude/rules/frontend-architecture.md` (Fluent UI, layout).
-7. **Resolve the auth-rule scope-staging TODO.** Update `.claude/rules/authentication.md`'s "Mail
-   reading (later story, TODO)" bullet to record the settled decision: delegated `Mail.Read`,
-   acquired incrementally at fetch; custom folder resolved by `displayName` → id. Rule:
+8. **Resolve the auth-rule scope-staging TODO.** Update `.claude/rules/authentication.md`'s "Mail
+   reading (later story, TODO)" bullet to record the settled decision: delegated `Mail.Read` is
+   **requested at sign-in** (folded into `loginRequest`) and acquired **silently** thereafter via
+   `acquireTokenSilent`; the custom `DevOps` folder is resolved by `displayName` → id. Rule:
    `.claude/rules/authentication.md`.
-8. **Add unit tests.** `src/services/mail/mailService.test.ts` with a **mocked** `Client`
+9. **Add unit tests.** `src/services/mail/mailService.test.ts` with a **mocked** `Client`
    (stub `.api().filter().select().get()` and `.top().get()` + a paged `@odata.nextLink`
    response): asserts it targets the folder-lookup then the messages endpoint, requests the right
    `$select` fields, drains all pages, aggregates results, and throws on an unknown folder. Rule:
    `.claude/rules/testing.md` (Vitest; prefer testing service logic directly over through the UI).
-9. **Verify.** `npm run build`, `npm run lint`, `npm run test` green; then a **live** browser run:
-   sign in → consent `Mail.Read` → raw messages from the `DevOps` folder render in the `<pre>`.
-   Validate the Definition of done. Rules: all skills' "done" bars +
-   `.claude/rules/authentication.md` invariants.
+10. **Verify.** `npm run build`, `npm run lint`, `npm run test` green; then a **live** browser run:
+    sign in (consenting `Mail.Read` at login) → raw messages from the `DevOps` folder render in the
+    `<pre>` with no further prompt. Validate the Definition of done. Rules: all skills' "done" bars +
+    `.claude/rules/authentication.md` invariants.
 
 ## Assumptions & open questions
-- **Folder resolved by `displayName` filter → id, not a well-known-name shortcut.** `DevOps` is a
-  custom folder, so `/me/mailFolders('DevOps')` (well-known shortcut) does not resolve it; we do
-  `$filter=displayName eq 'DevOps'` and use `value[0].id`. Alternative the reviewer may prefer:
-  configure the folder **id** directly via env instead of resolving by name.
-- **Auth provider = `AuthCodeMSALBrowserAuthenticationProvider` with `InteractionType.Redirect`.**
-  Reuses the app's redirect-only stance; the first fetch triggers an incremental-consent
-  **redirect** for `Mail.Read`. Alternative: a hand-rolled `acquireTokenSilent` callback, and/or
-  **popup** interaction for consent so app state is preserved instead of a full-page redirect.
-- **Scope = delegated `Mail.Read` (exact string).** Least privilege per the auth rule. Confirming
-  the exact scope string is right (vs. e.g. `Mail.ReadBasic`, which omits the body — but the story
-  requires the body).
-- **Selected fields = `subject,sender,from,body,receivedDateTime`.** The story asks for sender,
-  subject, body; `from` is included because ADO notifications set the practical author there and
-  `sender` can differ, and `receivedDateTime` gives the dump a stable order. Alternative: restrict
-  to exactly `subject,sender,body` as literally listed.
-- **"All" via `PageIterator` (page size `$top=50`).** Honours "all e-mails fetched" even though the
-  working set is bounded (~100). Alternative the reviewer may prefer: a single `$top=100` call for
-  simplicity, accepting it silently truncates if the folder ever exceeds 100.
-- **Service split into two modules** (`services/graph/graphClient.ts` for auth-wiring +
-  `services/mail/mailService.ts` for the query) rather than one combined module. Alternative: a
-  single `mailService.ts` that both builds the client and fetches.
+All six open questions were ratified in plan review (PR #10). Recorded here as settled decisions;
+no open questions remain.
+- **Auth = `acquireTokenSilent` + `Mail.Read` at sign-in — resolved (review).** The reviewer chose
+  the silent path over the `AuthCodeMSALBrowserAuthenticationProvider`/incremental-consent approach
+  I first proposed: consent to `Mail.Read` once as part of the app's normal sign-in (added to
+  `loginRequest`), then acquire tokens silently via a hand-rolled auth provider — minimal user
+  involvement, no per-fetch prompt. `InteractionRequiredAuthError` falls back to `acquireTokenRedirect`
+  as the standard safety net.
+- **Folder resolved by `displayName` filter → id — resolved (review).** `DevOps` is a custom
+  (non-well-known) folder, so `/me/mailFolders('DevOps')` does not resolve it; we `$filter=displayName
+  eq 'DevOps'` and use `value[0].id`. Reviewer chose to keep name-based resolution over a configured id.
+- **Scope = delegated `Mail.Read` — resolved (review).** Least privilege per the auth rule;
+  `Mail.ReadBasic` is insufficient because it omits the body the story requires.
+- **Selected fields = `subject,sender,from,body,receivedDateTime` — resolved (review).** Reviewer
+  accepted including `from` (ADO notifications set the practical author there, which can differ from
+  `sender`) and `receivedDateTime` (stable dump order) alongside the literally-listed fields.
+- **"All" via `PageIterator` (page size `$top=50`) — resolved (review).** Reviewer chose full paging
+  over a single `$top=100` call, so the fetch never silently truncates.
+- **Service split into two modules — resolved (review).** `services/graph/graphClient.ts` (MSAL
+  auth-wiring) + `services/mail/mailService.ts` (the folder query), rather than one combined module.
 
 ## Considerations
-- **Incremental consent is expected, not a bug.** Because login requested only OIDC scopes, the
-  first mail fetch will prompt for `Mail.Read` consent (a redirect). Subsequent loads acquire the
-  token silently from MSAL's cache.
+- **Silent-token safety net.** In the normal path `acquireTokenSilent` returns a cached/renewed
+  `Mail.Read` token with no interaction. Only if it throws `InteractionRequiredAuthError` (e.g. the
+  refresh token expired and can't be renewed silently) does the provider fall back to
+  `acquireTokenRedirect` — a rare full-page redirect, consistent with the app's redirect-only stance.
 - **App-registration `Mail.Read`.** The existing app registration must permit the delegated
-  `Mail.Read` scope (user or admin consent). If it is blocked, the consent redirect returns an
-  `AADSTS` error; the debug component surfaces the error text.
+  `Mail.Read` scope (user or admin consent). If it is blocked, sign-in's consent step returns an
+  `AADSTS` error, surfaced by the existing `AuthError` page (or, on later silent failure, the debug
+  component's error text).
 - **The debug component is throwaway.** It exists only to eyeball raw Graph output and must be
   removed when the real list/categorization lands; keep it isolated so removal is a folder delete
   plus one line in `App.tsx`.
@@ -188,7 +204,7 @@ Dependencies to add (exact-pinned, `npm install --save-exact`):
 - [ ] The raw Graph response is rendered on screen in a `<pre>` by a clearly-temporary debug component (AC: raw graph response printed on the screen).
 - [ ] Each fetched message includes sender, subject, and body (AC: sender, subject and body are returned).
 - [ ] The Graph call lives in its own service under `src/services/`, not inline in a component (AC: implement the graph call in its own service; frontend-architecture.md: logic in service).
-- [ ] Only the delegated `Mail.Read` scope is requested — no broader or write scope; login scopes are unchanged (authentication.md: least privilege).
+- [ ] Only the delegated `Mail.Read` scope is added to the sign-in request — no broader or write scope; the mail token is acquired silently via `acquireTokenSilent` thereafter (authentication.md: least privilege; review decision).
 - [ ] Client/tenant IDs and the folder name are read only from `VITE_*` env vars — none hardcoded (authentication.md invariant).
 - [ ] Tokens are acquired through MSAL and held only in MSAL's cache — no other token storage (authentication.md invariant).
 - [ ] New dependencies are exact-pinned — no `^`/`~`/`*` (frontend-architecture.md).
@@ -199,8 +215,10 @@ Dependencies to add (exact-pinned, `npm install --save-exact`):
 - **New:** `src/services/graph/graphClient.ts`, `src/services/mail/mailService.ts`,
   `src/services/mail/mailService.test.ts`, `src/components/MailDebug/MailDebug.tsx`,
   `src/components/MailDebug/useMailDebug.ts`.
-- **Changed:** `package.json` (Graph deps, exact-pinned), `src/App/App.tsx` (render `<MailDebug />`),
-  `src/vite-env.d.ts` (`VITE_MAIL_FOLDER`), `.env.sample` (`VITE_MAIL_FOLDER`),
-  `.claude/rules/authentication.md` (resolve the mail-scope-staging TODO).
-- **Untouched:** MSAL sign-in flow / `msalConfig.ts` (login scopes unchanged), TopBar/auth
-  components, categorization (none exists yet), CI/CD (none).
+- **Changed:** `package.json` (Graph deps, exact-pinned), `src/auth/msalConfig.ts` (`Mail.Read`
+  added to `loginRequest`), `src/App/App.tsx` (render `<MailDebug />`), `src/vite-env.d.ts`
+  (`VITE_MAIL_FOLDER`), `.env.sample` (`VITE_MAIL_FOLDER`), `.claude/rules/authentication.md`
+  (resolve the mail-scope-staging TODO).
+- **Untouched:** MSAL instance/cache config and the sign-in *flow* itself (still redirect,
+  `MsalAuthenticationTemplate`), TopBar/auth components, categorization (none exists yet),
+  CI/CD (none).
