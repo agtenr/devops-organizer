@@ -19,8 +19,17 @@
   colocated **custom hook** (e.g. `useCustomerTabs.ts` next to `CustomerTabs.tsx`).
 - The mapping/categorization business logic is **centralized in a service** (see
   `categorization-domain.md`) — components never re-implement it.
-- TODO (undecided): the concrete `src/` tree (e.g. `components/`, `hooks/`, `services/`,
-  `models/`). Settle it when the first components are scaffolded, then record it here.
+- **Concrete tree (settled in story 29 scaffold — grow it as features land):**
+  - `src/main.tsx` — app entry: mounts React into `#root`, wrapped in Fluent UI `FluentProvider`.
+  - `src/App/` — the root component folder (`App.tsx` + colocated `App.test.tsx`). Each new
+    component gets its **own folder** here (or under a `components/` grouping) following the same
+    pattern; its logic hook lives colocated in that folder.
+  - `src/setupTests.ts` — Vitest/jsdom setup (registers `@testing-library/jest-dom`).
+  - `e2e/` (repo root) — Playwright specs, run via `npm run test:e2e` (separate from Vitest).
+  - Build/tooling config lives at the repo root: `vite.config.ts` (Vite + Vitest), `tsconfig*.json`,
+    `eslint.config.js`, `.prettierrc`, `playwright.config.ts`.
+  - `services/`, `hooks/` (non-colocated shared), and `models/` are **not yet created** — add each
+    under `src/` when the first story needs it, rather than stubbing empty folders.
 
 ## Data flow
 - All emails are fetched **once, on app load** (see `authentication.md` for the Graph read).
