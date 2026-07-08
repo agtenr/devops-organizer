@@ -57,10 +57,16 @@ Dependencies (scaffold scope only): `react`, `react-dom`, `@fluentui/react-compo
 `jsdom`, `@testing-library/react`, `@testing-library/jest-dom`, `eslint`, `typescript-eslint`,
 `eslint-plugin-react-hooks`, `eslint-plugin-react-refresh`, `prettier`, `@playwright/test`.
 
+**Version pinning (project convention, ratified in review):** every dependency in `package.json`
+is pinned to an **exact version** — no `^`, `~`, or `*` ranges. Install with `npm install --save-exact`
+(or set `save-exact=true` in `.npmrc`) so the manifest records exact versions, and audit the written
+`package.json` to confirm no range prefixes remain.
+
 ## Task breakdown
 1. **Initialize npm project + TypeScript config.** Create `package.json` (name, `"type": "module"`,
-   scripts, deps above), `tsconfig.json`, `tsconfig.node.json`. Rule: `frontend-architecture.md`
-   (TypeScript + Vite + npm).
+   scripts, deps above), `tsconfig.json`, `tsconfig.node.json`. **Pin every dependency to an exact
+   version — no `^`, `~`, or `*` ranges** (install with `npm install --save-exact` / `.npmrc`
+   `save-exact=true`). Rule: `frontend-architecture.md` (TypeScript + Vite + npm).
 2. **Add Vite + React entry.** Create `index.html`, `src/main.tsx` (React root inside
    `FluentProvider`/`webLightTheme`), `vite.config.ts` with `@vitejs/plugin-react`. Rule:
    `frontend-architecture.md` (Vite/React/Fluent UI).
@@ -82,12 +88,14 @@ Dependencies (scaffold scope only): `react`, `react-dom`, `@fluentui/react-compo
    Rules: `frontend-architecture.md` + all five skills' "done" bars.
 
 ## Assumptions & open questions
-- **Package scope:** install only the scaffold packages now and defer auth packages (`@azure/msal-*`, `@microsoft/microsoft-graph-client`) to the authentication story, since "no authentication required yet." Prefer installing everything up-front instead?
-- **Fluent UI in hello world:** render the hello-world text via a Fluent UI v9 component inside `FluentProvider` (to prove the griffel/theme pipeline), rather than plain HTML. Acceptable, or is plain HTML fine for a placeholder?
-- **`src/` tree shape:** create only what hello world needs (`src/main.tsx`, `src/App/…`) and add `services/`, `hooks/`, `models/` when a story first needs them — rather than stubbing empty folders now. Prefer the full skeleton created up-front?
-- **`.env.sample` deferral:** defer committing `.env.sample` and any `VITE_*` wiring to the authentication story, since nothing consumes those vars until auth exists. Prefer a documented `.env.sample` committed now?
-- **Smoke tests vs. "no real tests yet":** add exactly one Vitest smoke test and one Playwright smoke test purely to prove the harnesses run — interpreting "no real tests yet" as no business-logic tests. Prefer zero tests (config only), or a different placeholder?
-- **ESLint flat config:** use the modern `eslint.config.js` flat config (ESLint 9 default) rather than legacy `.eslintrc`. Any objection?
+All open questions were ratified in plan review (PR #1); recorded here as settled decisions. No open
+questions remain.
+- **Package scope — resolved:** install packages as-we-go; defer auth packages (`@azure/msal-*`, `@microsoft/microsoft-graph-client`) to the authentication story. **Added in review:** every dependency is pinned to an exact version (no `^`/`~`/`*`) — see *Implementation approach* and task 1.
+- **Fluent UI in hello world — resolved:** render the hello-world text via a Fluent UI v9 component inside `FluentProvider`.
+- **`src/` tree shape — resolved:** create only what hello world needs now; add `services/`, `hooks/`, `models/` when a story first needs them.
+- **`.env.sample` deferral — resolved:** defer `.env.sample` and `VITE_*` wiring to the authentication story.
+- **Smoke tests — resolved:** one Vitest smoke test and one Playwright smoke test to prove the harnesses run.
+- **ESLint flat config — resolved:** use the modern `eslint.config.js` flat config.
 
 ## Considerations
 - **Node version:** Vite (5/6) requires a recent Node (18+/20+). The implementer should confirm the
@@ -107,6 +115,7 @@ Dependencies (scaffold scope only): `react`, `react-dom`, `@fluentui/react-compo
 
 ## Definition of done
 - [ ] `npm install` succeeds and `package.json` lists React, Vite, TypeScript, Fluent UI v9, ESLint, Prettier, Vitest, and Playwright (AC: all needed packages in `package.json`).
+- [ ] Every dependency in `package.json` is pinned to an exact version — no `^`, `~`, or `*` ranges (review-ratified convention).
 - [ ] `npm run dev` serves the SPA locally and a basic hello-world screen renders (AC: run locally + hello world shown).
 - [ ] `npm run build` completes with no TypeScript or Vite errors (build skill "done" bar).
 - [ ] `npm run lint` reports no ESLint errors and Prettier reports no formatting changes needed (frontend-architecture "done" bar).
