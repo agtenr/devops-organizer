@@ -23,11 +23,13 @@
     "@azure/msal-browser": "5.17.0",
     "@azure/msal-react": "5.5.2",
     "@fluentui/react-components": "9.74.3",
+    "@microsoft/microsoft-graph-client": "3.0.7",
     "react": "19.2.7",
     "react-dom": "19.2.7"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@microsoft/microsoft-graph-types": "2.43.1",
     "@playwright/test": "1.61.1",
     "@testing-library/jest-dom": "6.9.1",
     "@testing-library/react": "16.3.2",
