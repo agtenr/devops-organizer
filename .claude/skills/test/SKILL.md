@@ -1,20 +1,22 @@
-<!-- AIND KICKSTART DRAFT — intended design captured in conversation, NOT yet validated against
-     code. Review and correct before relying on it; re-run /aind:onboard once code exists to
-     reconcile. Suggestions, not ground truth. -->
 ---
 name: test
-description: Run the Vitest unit tests (notably the categorization service). Use to verify categorization rules and other logic.
+description: Run the Vitest unit tests. Use to verify logic (notably the categorization service, once it exists).
 allowed-tools: Bash
 ---
 
 # Unit tests
 
-> **STUB — TODO: verify once the toolchain exists.** No `package.json` yet; the command
-> below is the *intended* test command and has not been run.
+The `test` script is defined in `package.json`: `vitest run` (verified 2026-07-08).
 
 ```bash
-npm run test   # expected: Vitest run
+npm run test   # Vitest, single run (jsdom environment, globals enabled)
 ```
 
-The categorization service is the primary thing under test — see
-`.claude/rules/categorization-domain.md` and `.claude/rules/testing.md`.
+- Vitest config lives in `vite.config.ts` (`test` block): `environment: 'jsdom'`,
+  `globals: true`, `setupFiles: './src/setupTests.ts'`, and `include: ['src/**/*.{test,spec}.{ts,tsx}']`
+  so it does **not** pick up the Playwright specs under `e2e/`.
+- **Current state:** only a smoke test exists (`src/App/App.test.tsx`). The categorization
+  service is the primary intended subject of unit tests once it is built — see
+  `.claude/rules/categorization-domain.md` and `.claude/rules/testing.md`.
+- Component tests render through the app's `FluentProvider`/`webLightTheme` wrapper (see
+  `testing.md`).

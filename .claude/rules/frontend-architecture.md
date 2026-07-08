@@ -1,7 +1,3 @@
-<!-- AIND KICKSTART DRAFT — intended design captured in conversation, NOT yet validated against
-     code. Review and correct before relying on it; re-run /aind:onboard once code exists to
-     reconcile. Suggestions, not ground truth. -->
-
 # Frontend architecture rules
 
 ## Language / framework / version
