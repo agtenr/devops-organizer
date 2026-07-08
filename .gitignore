@@ -14,3 +14,6 @@ dist/
 coverage/
 playwright-report/
 test-results/
+
+# Demo files
+design/demo-messages
