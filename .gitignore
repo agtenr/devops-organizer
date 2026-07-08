@@ -1,0 +1,11 @@
+# AIND — holds the ADO PAT, never commit
+.claude/aind.env
+
+# Local env / secrets
+.env
+.env.local
+.env.*.local
+
+# Node
+node_modules/
+dist/
