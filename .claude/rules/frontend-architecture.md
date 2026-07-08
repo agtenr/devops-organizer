@@ -35,8 +35,9 @@
   library such as TanStack Query). Not decided — do not assume one.
 
 ## UI layout invariants
-- Top navigation bar shows **only** the logged-in user's display name and a **log-out**
-  button — nothing else.
+- Top navigation bar is **fixed to the top** of the page (does not scroll with the content). It
+  shows the **app title centered**, and the logged-in user's **display name** plus a **log-out**
+  button on the **right** — nothing else.
 - **Customer tabs** across the top, including an **"All"** tab; each tab shows an **item
   counter**.
 - **Left sidebar** filters by **project and/or type**; each entry shows an **item counter**.
