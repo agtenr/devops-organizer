@@ -1,5 +1,6 @@
 # AIND — holds the ADO PAT, never commit
 .claude/aind.env
+.claude/settings.local.json
 
 # Local env / secrets
 .env
