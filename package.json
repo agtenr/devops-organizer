@@ -20,6 +20,8 @@
     "node": "24.18.0"
   },
   "dependencies": {
+    "@azure/msal-browser": "5.17.0",
+    "@azure/msal-react": "5.5.2",
     "@fluentui/react-components": "9.74.3",
     "react": "19.2.7",
     "react-dom": "19.2.7"
