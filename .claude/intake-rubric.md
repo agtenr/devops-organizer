@@ -41,7 +41,7 @@ Judgment criteria never block on their own; they are recorded as advice for the 
 | O2 | **At least one acceptance criterion exists** | The story body or AC field contains ≥1 concrete acceptance criterion. |
 | O3 | **Intent is stated** | A user-story form ("As a … I want … so that …") *or* a clear problem/goal statement. The "As a…" form is **not** forced rigidly. |
 | O4 | **No unresolved placeholders** | No `TODO`, `???`, or `TBD` (case-insensitive) anywhere in the body or ACs. |
-| O5 | **Dependencies/blockers are named or explicitly "none"** | The story names its dependencies/blockers, or explicitly declares there are none. Silence is a miss. |
+| O5 | **Dependencies/blockers are named or explicitly "none"** | A dependency counts as *named* only when expressed as the structured **Predecessor** work-item link the automated dependency gate reads — a prose mention or a generic "Related" link alone does **not** satisfy it. Otherwise the story must explicitly declare there are none. Silence is a miss. |
 
 ## Judgment criteria (advisory — surfaced as comments, never a hard fail)
 
