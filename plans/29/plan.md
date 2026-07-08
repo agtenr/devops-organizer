@@ -37,7 +37,8 @@ scaffolded").
 
 Key files to create (repo root unless noted):
 - `package.json` — dependencies + the exact scripts the skills call: `dev`, `build`, `preview`,
-  `test`, `lint`, `format`, `test:e2e`.
+  `test`, `lint`, `format`, `test:e2e`; plus a `volta` stanza pinning Node (see below) and a
+  matching `engines.node` field.
 - `tsconfig.json` + `tsconfig.node.json` — strict TypeScript.
 - `vite.config.ts` — React plugin + Vitest test block (`environment: 'jsdom'`, `globals: true`,
   a `setupTests.ts` for `@testing-library/jest-dom`).
@@ -62,27 +63,42 @@ is pinned to an **exact version** — no `^`, `~`, or `*` ranges. Install with `
 (or set `save-exact=true` in `.npmrc`) so the manifest records exact versions, and audit the written
 `package.json` to confirm no range prefixes remain.
 
+**Node version (Volta, ratified in review):** the Node runtime is pinned with **Volta**
+(`voltajs`, https://volta.sh) to the **latest current Node LTS line** (expected to be Node 24.x as of
+mid-2026 — confirm the exact latest LTS at scaffold time via https://nodejs.org). Run
+`volta pin node@lts` in the repo root, which downloads the current LTS and writes the exact resolved
+version into a `"volta": { "node": "<x.y.z>" }` stanza in `package.json` (consistent with the
+exact-pin convention — no range). Also set `engines.node` to the matching major (e.g. `">=24"`) so
+non-Volta contributors get a clear signal. Volta then auto-loads the pinned Node whenever the app is
+run from the repo. **Prerequisite:** the implementer must have Volta installed locally first.
+
 ## Task breakdown
-1. **Initialize npm project + TypeScript config.** Create `package.json` (name, `"type": "module"`,
-   scripts, deps above), `tsconfig.json`, `tsconfig.node.json`. **Pin every dependency to an exact
-   version — no `^`, `~`, or `*` ranges** (install with `npm install --save-exact` / `.npmrc`
-   `save-exact=true`). Rule: `frontend-architecture.md` (TypeScript + Vite + npm).
-2. **Add Vite + React entry.** Create `index.html`, `src/main.tsx` (React root inside
+1. **Pin the Node runtime with Volta.** With Volta installed locally, run `volta pin node@lts` in the
+   repo root so the exact latest-LTS Node version is written to a `"volta"` stanza in `package.json`
+   (this task runs alongside/just before creating `package.json` in task 2). Confirm the resolved
+   version is the current LTS (expected Node 24.x as of mid-2026). Rule: `frontend-architecture.md`
+   (npm/Node toolchain).
+2. **Initialize npm project + TypeScript config.** Create `package.json` (name, `"type": "module"`,
+   scripts, deps above, the `volta` stanza from task 1, and `engines.node` set to the matching major),
+   `tsconfig.json`, `tsconfig.node.json`. **Pin every dependency to an exact version — no `^`, `~`, or
+   `*` ranges** (install with `npm install --save-exact` / `.npmrc` `save-exact=true`). Rule:
+   `frontend-architecture.md` (TypeScript + Vite + npm).
+3. **Add Vite + React entry.** Create `index.html`, `src/main.tsx` (React root inside
    `FluentProvider`/`webLightTheme`), `vite.config.ts` with `@vitejs/plugin-react`. Rule:
    `frontend-architecture.md` (Vite/React/Fluent UI).
-3. **Build the hello-world component.** Create `src/App/App.tsx` rendering a Fluent component (e.g. a
+4. **Build the hello-world component.** Create `src/App/App.tsx` rendering a Fluent component (e.g. a
    `Text`/`Title1`) that shows a hello-world message. Rule: `frontend-architecture.md` (Fluent UI for
    all UI; component-per-folder).
-4. **Wire ESLint + Prettier.** Create `eslint.config.js` (typescript-eslint + react-hooks) and
+5. **Wire ESLint + Prettier.** Create `eslint.config.js` (typescript-eslint + react-hooks) and
    `.prettierrc`/`.prettierignore`; add `lint` and `format` scripts. Ensure the scaffold passes both.
    Rule: `frontend-architecture.md` (ESLint + Prettier conventions & "done" bar).
-5. **Wire Vitest.** Add the Vitest block to `vite.config.ts`, create `src/setupTests.ts`, and add one
+6. **Wire Vitest.** Add the Vitest block to `vite.config.ts`, create `src/setupTests.ts`, and add one
    smoke test `src/App/App.test.tsx`; add the `test` script. Rule: `.claude/rules/testing.md` (Vitest
    is the runner).
-6. **Wire Playwright.** Add `@playwright/test`, `playwright.config.ts` (with `webServer` booting
+7. **Wire Playwright.** Add `@playwright/test`, `playwright.config.ts` (with `webServer` booting
    `npm run dev`), `e2e/smoke.spec.ts`, and the `test:e2e` script. Rule: `.claude/rules/testing.md`
    (Playwright for E2E — this story makes the aspirational harness real).
-7. **Verify + record.** Run `npm install` then each skill command (`build`, `dev`, `test`, `lint`,
+8. **Verify + record.** Run `npm install` then each skill command (`build`, `dev`, `test`, `lint`,
    `format`, `test:e2e`) to confirm they pass; update `.claude/rules/frontend-architecture.md` to
    record the now-settled `src/` tree (replacing its "TODO (undecided): the concrete `src/` tree").
    Rules: `frontend-architecture.md` + all five skills' "done" bars.
@@ -96,10 +112,12 @@ questions remain.
 - **`.env.sample` deferral — resolved:** defer `.env.sample` and `VITE_*` wiring to the authentication story.
 - **Smoke tests — resolved:** one Vitest smoke test and one Playwright smoke test to prove the harnesses run.
 - **ESLint flat config — resolved:** use the modern `eslint.config.js` flat config.
+- **Node runtime pinning — resolved (review):** pin Node to the latest current LTS with Volta (`volta pin node@lts`), recording the exact version in a `package.json` `volta` stanza — see *Implementation approach* and task 1.
 
 ## Considerations
-- **Node version:** Vite (5/6) requires a recent Node (18+/20+). The implementer should confirm the
-  local Node on this Windows machine satisfies Vite's engine requirement before scaffolding.
+- **Volta prerequisite:** Node is now pinned via Volta (task 1). Volta must be installed on the
+  machine first (https://volta.sh; Windows installer available). The chosen latest-LTS Node also
+  comfortably satisfies Vite's engine requirement.
 - **Playwright browser binaries:** first E2E run needs `npx playwright install` to download browsers —
   a one-time local step (and a future CI consideration, though no CI is configured yet).
 - **Skills are currently stubs:** they document *intended* commands; scaffolding makes them real, which
@@ -116,6 +134,7 @@ questions remain.
 ## Definition of done
 - [ ] `npm install` succeeds and `package.json` lists React, Vite, TypeScript, Fluent UI v9, ESLint, Prettier, Vitest, and Playwright (AC: all needed packages in `package.json`).
 - [ ] Every dependency in `package.json` is pinned to an exact version — no `^`, `~`, or `*` ranges (review-ratified convention).
+- [ ] Node is pinned to the current LTS via Volta — `package.json` has a `volta.node` exact version (and a matching `engines.node`), and `volta pin node@lts` was used (review-ratified convention).
 - [ ] `npm run dev` serves the SPA locally and a basic hello-world screen renders (AC: run locally + hello world shown).
 - [ ] `npm run build` completes with no TypeScript or Vite errors (build skill "done" bar).
 - [ ] `npm run lint` reports no ESLint errors and Prettier reports no formatting changes needed (frontend-architecture "done" bar).
