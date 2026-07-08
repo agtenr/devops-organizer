@@ -21,6 +21,9 @@
     component gets its **own folder** here (or under a `components/` grouping) following the same
     pattern; its logic hook lives colocated in that folder.
   - `src/setupTests.ts` — Vitest/jsdom setup (registers `@testing-library/jest-dom`).
+  - `src/vite-env.d.ts` — Vite client-types / `import.meta.env` typing file: holds
+    `/// <reference types="vite/client" />` plus the `ImportMetaEnv` interface typing the
+    `VITE_*` vars. Keep it on re-scaffold/onboard so env typing is not silently dropped.
   - `e2e/` (repo root) — Playwright specs, run via `npm run test:e2e` (separate from Vitest).
   - Build/tooling config lives at the repo root: `vite.config.ts` (Vite + Vitest), `tsconfig*.json`,
     `eslint.config.js`, `.prettierrc`, `playwright.config.ts`.
@@ -52,6 +55,14 @@
     `npm install --save-exact`.
   - The Node runtime is pinned to the current LTS via **Volta** (voltajs) — an exact
     `volta.node` version in `package.json`, with a matching `engines.node`.
+  - **Line endings are pinned to LF deterministically across OSes.** Git stores content
+    with LF, but on Windows `core.autocrlf` checks files out as CRLF; Prettier's default
+    `endOfLine: lf` then flags *every* working-tree file even though the committed content
+    is clean — a false positive that breaks `npm run format:check` on Windows checkouts.
+    Prevent this with a committed **`.gitattributes`** enforcing LF (e.g. `* text=auto
+    eol=lf`) **and/or** aligning Prettier's `endOfLine` so the check matches the checkout.
+    (Applying this convention touches repo files outside `.claude/` — `.gitattributes`,
+    `.prettierrc`.)
 
 ## What "done" looks like for a change here
 - Type-checks and builds cleanly; no ESLint errors; formatted with Prettier.
