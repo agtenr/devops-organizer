@@ -49,6 +49,12 @@
 ## Conventions
 - **ESLint + Prettier**: ESLint (typescript-eslint + react-hooks rules) for correctness,
   Prettier for formatting.
+- **Deterministic, reproducible installs & runtime**:
+  - Every dependency in `package.json` is pinned to an **exact version** — no `^`, `~`, or
+    `*` ranges. This is enforced by `.npmrc` (`save-exact=true`); add packages with
+    `npm install --save-exact`.
+  - The Node runtime is pinned to the current LTS via **Volta** (voltajs) — an exact
+    `volta.node` version in `package.json`, with a matching `engines.node`.
 
 ## What "done" looks like for a change here
 - Type-checks and builds cleanly; no ESLint errors; formatted with Prettier.
