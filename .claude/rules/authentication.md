@@ -36,10 +36,13 @@
 - Assuming an interactive login where a silent token acquisition suffices (and vice versa).
 
 ## Scope staging
-- **Sign-in (story 30, done):** interactive sign-in requests only the implicit OIDC scopes
-  (`openid`/`profile`) — enough to read the display name from the ID token. No Microsoft Graph
-  client and no mail scope are added at the auth-setup stage (least privilege for what sign-in
-  actually needs).
-- **Mail reading (later story, TODO):** `Mail.Read` is requested only when mail is first read,
-  along with the folder-read endpoint decision (folder **by name** vs. resolving a folder **id**
-  first). Confirm the exact Graph scope string then.
+- **Sign-in (story 30):** at the auth-setup stage sign-in requested only the implicit OIDC scopes
+  (`openid`/`profile`) — enough to read the display name from the ID token — with no Graph client
+  and no mail scope (least privilege for what sign-in alone needed).
+- **Mail reading (story 36, done):** the app now reads mail, so the least-privilege read-only
+  **`Mail.Read`** scope is folded into the **sign-in** request (`loginRequest.scopes`), letting the
+  user consent once and the app acquire mail tokens **silently** thereafter via `acquireTokenSilent`
+  (falling back to `acquireTokenRedirect` only on `InteractionRequiredAuthError`). `Mail.ReadBasic`
+  is insufficient because it omits the message body. The target folder is **custom** (not a
+  well-known folder), so it is resolved by **display name → id** (`$filter=displayName eq …`) rather
+  than the well-known-name shortcut, with the folder name supplied via `VITE_MAIL_FOLDER`.

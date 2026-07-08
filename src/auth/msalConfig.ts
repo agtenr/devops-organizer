@@ -23,8 +23,9 @@ const configuration: Configuration = {
 // Single MSAL instance shared across the app; `initialize()` is awaited in `main.tsx` before use.
 export const msalInstance = new PublicClientApplication(configuration);
 
-// Interactive sign-in requests only the implicit OIDC scopes (openid/profile), which is enough
-// to read the display name from the ID token. Mail.Read is deferred to the mail-reading story.
+// Sign-in requests the least-privilege read-only mail scope (Mail.Read) alongside the implicit
+// OIDC scopes MSAL always includes. Consenting to Mail.Read once at sign-in lets the app acquire
+// mail tokens silently thereafter (see `.claude/rules/authentication.md`).
 export const loginRequest: RedirectRequest = {
-  scopes: [],
+  scopes: ['Mail.Read'],
 };
