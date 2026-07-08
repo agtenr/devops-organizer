@@ -1,6 +1,3 @@
-<!-- AIND KICKSTART DRAFT — intended design captured in conversation, NOT yet validated against
-     code. Review and correct before relying on it; re-run /aind:onboard once code exists to
-     reconcile. Suggestions, not ground truth. -->
 ---
 name: lint
 description: Lint and format-check the codebase (ESLint + Prettier). Use before considering a change done.
