@@ -35,6 +35,11 @@
 - Storing tokens anywhere other than MSAL's cache.
 - Assuming an interactive login where a silent token acquisition suffices (and vice versa).
 
-## TODO (undecided)
-- Confirm the exact Graph scope string and the folder-read endpoint (folder **by name**
-  vs. resolving a folder **id** first) during implementation.
+## Scope staging
+- **Sign-in (story 30, done):** interactive sign-in requests only the implicit OIDC scopes
+  (`openid`/`profile`) — enough to read the display name from the ID token. No Microsoft Graph
+  client and no mail scope are added at the auth-setup stage (least privilege for what sign-in
+  actually needs).
+- **Mail reading (later story, TODO):** `Mail.Read` is requested only when mail is first read,
+  along with the folder-read endpoint decision (folder **by name** vs. resolving a folder **id**
+  first). Confirm the exact Graph scope string then.
