@@ -1,0 +1,10 @@
+dist
+node_modules
+package-lock.json
+playwright-report
+test-results
+coverage
+
+# Repo docs / AIND config are not part of the app codebase
+.claude/
+plans/
