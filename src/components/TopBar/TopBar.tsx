@@ -3,18 +3,40 @@ import { useTopBar } from './useTopBar';
 
 const useStyles = makeStyles({
   root: {
-    display: 'flex',
+    // Sticky (not fixed) so the bar stays put while content scrolls without leaving the flow, so
+    // content below needs no manual top-offset (see `.claude/rules/frontend-architecture.md`).
+    position: 'sticky',
+    top: 0,
+    zIndex: 1,
+    // Three-zone grid so the title is centered independent of the right group's width: an empty
+    // 1fr spacer (column 1), the title (column 2, auto), and the user group (column 3, 1fr).
+    display: 'grid',
+    gridTemplateColumns: '1fr auto 1fr',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingBlock: tokens.spacingVerticalM,
     paddingInline: tokens.spacingHorizontalL,
+    // Opaque background so scrolled content passes under the bar rather than showing through it.
+    backgroundColor: tokens.colorNeutralBackground1,
     borderBottom: `${tokens.strokeWidthThin} solid ${tokens.colorNeutralStroke2}`,
+  },
+  title: {
+    gridColumnStart: 2,
+    // Reset the default <h1> margin so the title sits vertically centered in the bar.
+    margin: 0,
+  },
+  userGroup: {
+    gridColumnStart: 3,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: tokens.spacingHorizontalM,
   },
 });
 
 /**
- * Top navigation bar. Per the layout invariant it shows ONLY the logged-in user's display name
- * and a log-out button — nothing else (see `.claude/rules/frontend-architecture.md`).
+ * Top navigation bar. Fixed to the top of the page (does not scroll with content); shows the app
+ * title centered, and the logged-in user's display name plus a log-out button on the right
+ * (see `.claude/rules/frontend-architecture.md`).
  */
 export function TopBar() {
   const styles = useStyles();
@@ -22,10 +44,15 @@ export function TopBar() {
 
   return (
     <header className={styles.root}>
-      <Text weight="semibold">{displayName}</Text>
-      <Button appearance="secondary" onClick={logout}>
-        Log out
-      </Button>
+      <Text as="h1" size={500} weight="semibold" align="center" className={styles.title}>
+        Azure DevOps E-mail Organizer
+      </Text>
+      <div className={styles.userGroup}>
+        <Text weight="semibold">{displayName}</Text>
+        <Button appearance="secondary" onClick={logout}>
+          Log out
+        </Button>
+      </div>
     </header>
   );
 }
