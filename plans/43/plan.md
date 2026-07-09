@@ -131,7 +131,8 @@ data-hook → view layering:
    column (header select-all bound to the visible rows; per-row bound to `selectedIds`), with the
    checkbox `onClick` calling `stopPropagation` so it does not open the body drawer. Add a Delete
    toolbar button above the `Table`, **enabled only when `selectedCount >= 2`** (see open question),
-   labelled with the count, opening the bulk confirm. In the Actions cell, add a delete **icon**
+   labelled with the count, opening the bulk confirm (threshold reviewer-confirmed). In the Actions
+   cell, add a delete **icon**
    button (opens the row confirm) for every row and convert the existing "Resolve project GUID"
    button to an **icon** button (`icon` + `aria-label="Resolve project GUID"`), both with
    `stopPropagation`. Render `ConfirmDeleteDialog` when `deleteTarget` is set; its `onConfirm` is
@@ -147,31 +148,28 @@ data-hook → view layering:
    tests (checkbox column, bulk-button enablement, delete icon opens dialog, resolve is now an icon).
    Obeys `.claude/rules/testing.md`.
 
-10. **Record the scope escalation in `.claude/rules/authentication.md`** (see open question). Append a
-    "story 43" bullet to the **Scope staging** section documenting the `Mail.Read` → `Mail.ReadWrite`
-    change and its rationale, matching the existing per-story staging log (stories 30/36/42).
+10. **Record the scope escalation in `.claude/rules/authentication.md`.** Append a "story 43" bullet to
+    the **Scope staging** section: **read-only (`Mail.Read`) remains the default posture**, and
+    `Mail.ReadWrite` is added **specifically because deleting mail requires a write scope** — kept
+    scoped to mail and folded into sign-in (silent acquisition thereafter). Matches the existing
+    per-story staging log (stories 30/36/42). Reviewer-confirmed on PR #27.
 
 ## Assumptions & open questions
 
-- **Bulk-delete threshold is 2+.** The story says the toolbar Delete button enables when "more then 1"
-  is selected and the AC says "when multiple mails are selected", so I gate it at `selectedCount >= 2`
-  and leave single-row deletion to the per-row icon. Alternative the reviewer may prefer: enable at
-  `>= 1` so a single checked row is actionable without the row icon. Which threshold?
-- **Partial bulk-delete failure prunes the successes and reports the rest.** If some ids delete and
-  others fail, I remove the succeeded ones from the list and reject with an error naming the failed
-  count (view reflects reality; visibility over silent inconsistency, per the domain rules).
-  Alternative: all-or-nothing (remove none unless every delete succeeds). Which behavior?
-- **This PR updates `.claude/rules/authentication.md`'s scope-staging log (task 10).** The rule
-  currently says "never broaden beyond read-only mail access"; leaving it stale would contradict the
-  shipped code, and the rule already keeps a per-story staging log. Assumption: the coder appends the
-  story-43 entry. Alternative: rule-doc maintenance is out of scope for a feature PR and left to the
-  human / dreaming phase. Should the coder edit the rule?
-- **Delete uses Graph's default `DELETE` (move to Deleted Items), not permanent delete.** This is
-  recoverable from the mailbox's Deleted Items. Assumption this is the intended "delete"; flag if a
-  hard/permanent delete is wanted.
-- **Icons: official `@fluentui/react-icons`.** Assumed as the delete/resolve glyph source (first-party,
-  already transitive). Alternative: avoid the new dependency with a hand-rolled/text glyph. OK to add
-  the dependency?
+All five open questions from the first review were resolved by the reviewer on PR #27 — **no open
+questions remain**. The decisions (now baked into the plan above):
+
+- **Bulk-delete threshold — RESOLVED: `selectedCount >= 2`.** The toolbar Delete button enables only
+  when 2+ rows are selected; single-row deletion uses the per-row icon.
+- **Partial bulk-delete failure — RESOLVED: prune successes, report failures.** Succeeded ids are
+  removed from the list and the action rejects with an error naming the failed count ("visibility over
+  silent inconsistency").
+- **Rule-doc update — RESOLVED: yes, edit the rule (task 10).** Update `.claude/rules/authentication.md`
+  to record that read-only stays the default posture and that `Mail.ReadWrite` is added specifically
+  because the delete feature needs a write scope.
+- **Delete semantics — RESOLVED: Graph default `DELETE`** (`/me/messages/{id}`, moves to Deleted Items,
+  recoverable). No permanent/hard delete.
+- **Icons — RESOLVED: add `@fluentui/react-icons`** as a direct, exact-pinned dependency.
 
 ## Considerations
 
@@ -201,8 +199,8 @@ skill) and Playwright E2E (`npm run test:e2e`, `e2e` skill) — so this ships wi
   - Bulk Delete button: **disabled at 0 and 1 selected, enabled at 2** → asserts the chosen threshold.
   - Delete failure → `ConfirmDeleteDialog` stays open, shows the error, and the row(s) remain in the
     list (nothing pruned on a total failure).
-  - Partial bulk failure → succeeded ids pruned, error names the failed count (pending the open
-    question; if all-or-nothing is chosen instead, assert nothing is pruned on any failure).
+  - Partial bulk failure → succeeded ids pruned, error names the failed count (reviewer-confirmed
+    behavior).
   - Confirm text: `count === 1` renders the subject; `count > 1` renders the count.
   - "No" dismisses without calling `deleteEmails`.
   - Selection is cleared after a successful bulk delete.
@@ -250,4 +248,5 @@ skill) and Playwright E2E (`npm run test:e2e`, `e2e` skill) — so this ships wi
 - `src/services/mail/mailService.test.ts` (new), `src/components/EmailList/useEmailList.test.ts`,
   `src/components/EmailList/EmailList.test.tsx` — tests.
 - `package.json` / `package-lock.json` — `@fluentui/react-icons` dependency.
-- `.claude/rules/authentication.md` — scope-staging log entry (pending open question).
+- `.claude/rules/authentication.md` — scope-staging log entry (read stays default; write added for
+  delete).
