@@ -251,30 +251,34 @@ transform — lowercased on write and on lookup).
    like"), `testing.md`.*
 
 ## Assumptions & open questions
-- **Scope: use `Files.ReadWrite`, not the story's `Files.ReadWrite.AppFolder`.** Microsoft docs state
-  `Files.ReadWrite.AppFolder` is **valid only for personal Microsoft accounts**; for work/school
-  (OneDrive for Business) accounts it is *"not currently supported"* and `Files.ReadWrite` is the
-  scope to use (permissions reference + OneDrive endpoint-differences). This app signs in with
-  **organizational Entra ID accounts** (`authentication.md`), so I plan for `Files.ReadWrite` (which
-  still reaches `/me/drive/special/approot`). Alternative: keep `Files.ReadWrite.AppFolder` if the app
-  will only ever be used with personal accounts. **Which account type must this support?**
-- **Storage location = the `approot` app folder, file `project-guid-map.json`.** Keeps the app's data
-  in its own dedicated `Apps/<app>` folder rather than the OneDrive root. Alternative: a fixed path in
-  the OneDrive root (e.g. `/me/drive/root:/devops-organizer/…`). Is the app folder the intended home?
-- **Mapping key = bare GUID (globally unique), map is a flat `{ guid: name }`.** The picker is still
-  org-scoped in the UI. Alternative: a compound `"<org>/<guid>"` key if you want the *same* GUID to
-  map differently per organization. **OK to key by GUID alone?**
-- **New model field `projectIsUnresolvedGuid` drives the action's visibility**, so the UI never
-  re-derives GUID detection (honours "components consume tags verbatim"). Alternative: expose it via a
-  helper on the service instead of a stored field, or let the UI test `GUID_RE` (rejected — that
-  duplicates business logic). OK to extend `CategorizedEmail`?
-- **Map-fetch failure is non-fatal.** If the map file is missing/unreadable the app loads mail with an
-  empty map (GUIDs stay unresolved) and shows **no** error; only *mail* fetch failure surfaces the
-  error state. Matches "if no mapping file found, nothing changes." Alternative: surface a dismissable
-  warning that mappings couldn't load. Acceptable to fail silently?
-- **The Save spinner and error live in the dialog** (around the awaited `resolveProjectGuid`), and the
-  dialog closes only on success; on failure it stays open showing an error. The AC specifies the
-  spinner but is silent on the failure path — is "stay open + show error" the wanted behavior?
+All six questions below were **settled by plan review (PR #23) and folded into the plan** — the
+reviewer confirmed each recommendation as written. They remain documented here (permanent living
+documentation) as the **ratified decisions**, no longer open:
+
+- **Scope = `Files.ReadWrite`, not the story's `Files.ReadWrite.AppFolder`** *(ratified)*. Microsoft
+  docs state `Files.ReadWrite.AppFolder` is **valid only for personal Microsoft accounts**; for
+  work/school (OneDrive for Business) accounts it is *"not currently supported"* and `Files.ReadWrite`
+  is the scope to use (permissions reference + OneDrive endpoint-differences). This app signs in with
+  **organizational Entra ID accounts** (`authentication.md`), so `Files.ReadWrite` (which still reaches
+  `/me/drive/special/approot`) is used. Keeping `Files.ReadWrite.AppFolder` (personal accounts only)
+  was declined — the reviewer confirmed the broader scope is acceptable here.
+- **Storage location = the `approot` app folder, file `project-guid-map.json`** *(ratified)*. The map
+  lives in the app's dedicated `Apps/<app>` folder — the reviewer confirmed the app folder is the
+  intended home. A fixed path in the OneDrive root was declined.
+- **Mapping key = bare GUID (globally unique), map is a flat `{ guid: name }`** *(ratified)*. The
+  picker stays org-scoped in the UI. A compound `"<org>/<guid>"` key (to map the same GUID differently
+  per organization) was declined — keying by GUID alone was confirmed.
+- **New model field `projectIsUnresolvedGuid` drives the action's visibility** *(ratified)*. The UI
+  never re-derives GUID detection (honours "components consume tags verbatim"). Exposing it via a
+  service helper instead of a stored field, or letting the UI test `GUID_RE`, were declined — extending
+  `CategorizedEmail` was confirmed.
+- **Map-fetch failure is non-fatal** *(ratified)*. If the map file is missing/unreadable the app loads
+  mail with an empty map (GUIDs stay unresolved) and shows **no** error; only *mail* fetch failure
+  surfaces the error state (matches "if no mapping file found, nothing changes"). Surfacing a
+  dismissable warning was declined — silent fallback was confirmed acceptable.
+- **The Save spinner and error live in the dialog** *(ratified)*. Around the awaited
+  `resolveProjectGuid`, the dialog closes only on success; on failure it **stays open showing an
+  error**. The reviewer confirmed this failure-path behavior (the AC specifies only the spinner).
 
 ## Considerations
 - **Security — scope breadth.** `Files.ReadWrite` grants read/write to the user's whole OneDrive,
