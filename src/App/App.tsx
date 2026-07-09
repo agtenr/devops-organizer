@@ -3,7 +3,7 @@ import { MsalAuthenticationTemplate } from '@azure/msal-react';
 import { loginRequest } from '../auth/msalConfig';
 import { AuthError } from '../components/AuthError/AuthError';
 import { AuthLoading } from '../components/AuthLoading/AuthLoading';
-import { MailDebug } from '../components/MailDebug/MailDebug';
+import { Organizer } from '../components/Organizer/Organizer';
 import { TopBar } from '../components/TopBar/TopBar';
 
 /**
@@ -20,8 +20,7 @@ export function App() {
       loadingComponent={AuthLoading}
     >
       <TopBar />
-      {/* TEMPORARY: raw Graph mail dump for story 36 — remove with the MailDebug folder later. */}
-      <MailDebug />
+      <Organizer />
     </MsalAuthenticationTemplate>
   );
 }

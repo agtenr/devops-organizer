@@ -1,20 +1,33 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useMsal } from '@azure/msal-react';
 import type { Message } from '@microsoft/microsoft-graph-types';
-import { createGraphClient } from '../../services/graph/graphClient';
-import { fetchMailFromFolder } from '../../services/mail/mailService';
-import { categorizeEmails } from '../../services/categorization/categorizationService';
+import { createGraphClient } from '../services/graph/graphClient';
+import { fetchMailFromFolder } from '../services/mail/mailService';
+import { categorizeEmails } from '../services/categorization/categorizationService';
+import type { CategorizedEmail } from '../models/categorization';
 
 type Status = 'loading' | 'success' | 'error';
 
 // Folder name via env (see `.claude/rules/authentication.md`); default to the DevOps folder.
 const mailFolder = import.meta.env.VITE_MAIL_FOLDER || 'DevOps';
 
+/** The shared mail data: load status, the categorized set, and context for rendering. */
+export interface UseCategorizedMailResult {
+  status: Status;
+  error: string;
+  folderName: string;
+  /** The full categorized set. `categorized.length` equals the fetched-message count (never dropped). */
+  categorized: CategorizedEmail[];
+}
+
 /**
- * TEMPORARY debug hook (see `MailDebug`). Fetches all mail from the configured folder once on
- * mount using the signed-in account, and exposes the raw result plus a status/error for rendering.
+ * Shared data hook: fetches all mail from the configured folder once on mount using the signed-in
+ * account and categorizes it via the pure engine, exposing the tagged set plus a status/error. It
+ * owns no selection or view concern — consumers (the `Organizer` container today, the real list
+ * view in #39) layer filtering/selection on top. Categorization is memoised off the fetched
+ * messages; the service is the single source of tags (`.claude/rules/categorization-domain.md`).
  */
-export function useMailDebug() {
+export function useCategorizedMail(): UseCategorizedMailResult {
   const { accounts } = useMsal();
   const account = accounts[0];
   const [status, setStatus] = useState<Status>('loading');
@@ -49,10 +62,7 @@ export function useMailDebug() {
     };
   }, [account]);
 
-  // Derive the (Customer, Project, Type) triples from the fetched set. Pure + synchronous, so it is
-  // memoised off `messages` rather than held in its own state (the service is the single source of
-  // categorization — the component never re-derives tags).
   const categorized = useMemo(() => categorizeEmails(messages), [messages]);
 
-  return { status, messages, categorized, error, folderName: mailFolder };
+  return { status, error, folderName: mailFolder, categorized };
 }

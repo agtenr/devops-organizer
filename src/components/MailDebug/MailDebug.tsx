@@ -1,6 +1,5 @@
 import { Badge, Spinner, Text, makeStyles, tokens } from '@fluentui/react-components';
 import type { CategorizedEmail } from '../../models/categorization';
-import { useMailDebug } from './useMailDebug';
 
 const useStyles = makeStyles({
   root: {
@@ -84,16 +83,24 @@ function CategorizedCard({ email }: { email: CategorizedEmail }) {
   );
 }
 
+export interface MailDebugProps {
+  status: 'loading' | 'success' | 'error';
+  error: string;
+  folderName: string;
+  /** The (already-filtered) categorized set to visualize; the raw `<pre>` is `emails.map(e => e.message)`. */
+  emails: CategorizedEmail[];
+}
+
 /**
  * TEMPORARY debug component: shows the categorized `(Customer, Project, Type)` triples next to the
- * raw Microsoft Graph response for the configured mail folder, so the categorization can be eyeballed
- * against the raw shape. It exists only to inspect the engine's output and must be removed once the
- * real list/categorization UI lands — deleting this folder and its one line in `App.tsx` is the whole
- * removal.
+ * raw Microsoft Graph response, so the categorization can be eyeballed against the raw shape. It is
+ * a pure presentational visualizer — it renders whatever (already-filtered) e-mails it is handed and
+ * owns no data-fetching or selection state (those live in `useCategorizedMail` / the `Organizer`
+ * container). It must be removed once the real list/categorization UI lands — deleting this folder
+ * and swapping the visualizer inside `Organizer` is the whole removal.
  */
-export function MailDebug() {
+export function MailDebug({ status, error, folderName, emails }: MailDebugProps) {
   const styles = useStyles();
-  const { status, messages, categorized, error, folderName } = useMailDebug();
 
   return (
     <section className={styles.root}>
@@ -107,10 +114,10 @@ export function MailDebug() {
         <div className={styles.columns}>
           <div className={styles.column}>
             <Text as="h2" size={400} className={styles.heading}>
-              Categorized ({categorized.length})
+              Categorized ({emails.length})
             </Text>
             <div className={styles.list}>
-              {categorized.map((email, index) => (
+              {emails.map((email, index) => (
                 <CategorizedCard key={email.message.id ?? index} email={email} />
               ))}
             </div>
@@ -119,7 +126,13 @@ export function MailDebug() {
             <Text as="h2" size={400} className={styles.heading}>
               Raw Graph response
             </Text>
-            <pre className={styles.pre}>{JSON.stringify(messages, null, 2)}</pre>
+            <pre className={styles.pre}>
+              {JSON.stringify(
+                emails.map((email) => email.message),
+                null,
+                2,
+              )}
+            </pre>
           </div>
         </div>
       )}

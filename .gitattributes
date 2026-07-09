@@ -1,0 +1,3 @@
+# Store text with LF in git and check it out with LF on every OS, so Prettier's `endOfLine`
+# check (see `.claude/rules/frontend-architecture.md`) is deterministic across Windows/macOS/Linux.
+* text=auto eol=lf
