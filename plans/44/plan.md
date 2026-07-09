@@ -6,12 +6,16 @@ Four Azure DevOps notification e-mails in the demo corpus are mis-categorized by
 engine in `src/services/categorization/categorizationService.ts`. The story pins each one to a
 sample `.msg` and the type it *should* get:
 
-| # | Sample `.msg` (`design/demo-messages/`) | Action sentence in body | Today | Expected |
+| # | Sample `.msg` id (`design/demo-messages/`) | Action sentence in body | Today | Expected |
 |---|---|---|---|---|
-| 1 | `PR - ACS Replacement … 8419 (Wout Torremans).msg` | "Wout Torremans **pushed new changes**" | Other · Unknown | **Pull request · Updated** |
-| 2 | `FW_ PR - Change the requestor … AZGL.MeetingApp 278 ….msg` | "Mohamed Machaleh **published the pull request**" | Work item · Created | **Pull request · Published** |
-| 3 | `PR - ACS Replacement … 8419 (Wout Torremans) (1).msg` | "Wout Torremans **created a new pull request**" | Work item · Created | **Pull request · Created** |
-| 4 | `FW_ [Build canceled] DW.DataSync … 8776103c.msg` | "Build #91801 **canceled**" / subject `[Build canceled]` | Other · Unknown | **Build · Cancelled** |
+| 1 | `PR - ACS Replacement … 8419 …` | "*(author)* **pushed new changes**" | Other · Unknown | **Pull request · Updated** |
+| 2 | `FW_ PR - Change the requestor … AZGL.MeetingApp 278 …` | "*(author)* **published the pull request**" | Work item · Created | **Pull request · Published** |
+| 3 | `PR - ACS Replacement … 8419 … (1)` | "*(author)* **created a new pull request**" | Work item · Created | **Pull request · Created** |
+| 4 | `FW_ [Build canceled] DW.DataSync … 8776103c` | "Build #91801 **canceled**" / subject `[Build canceled]` | Other · Unknown | **Build · Cancelled** |
+
+The four source e-mails live in `design/demo-messages/` (binary, untracked). Locate each by the
+identifier above — the PR/build number (`8419`, `8419 … (1)`, `278`, `8776103c`) plus its subject
+prefix; the author-name suffix present in the real filenames is omitted here for privacy.
 
 Root causes, each verified against the extracted body text:
 
@@ -102,9 +106,10 @@ cases 2 and 3 stop mis-classifying as `Work item · Created`.
    `src/services/categorization/__fixtures__/` (suggested names below), each reduced to the Graph
    `Message` fields the service consumes (`subject`, `body.contentType: "html"`, `body.content`)
    plus `sender`/`from` for realism, mirroring the existing fixtures' shape. **Anonymise**: replace
-   real display names (`Wout Torremans`, `Mohamed Machaleh`) and recipient e-mail addresses
-   (`*.delaware.pro`, `Agten, Robin`) with the neutral placeholders already used (`Demo User`,
-   `demo.user@example.com`, …). **Keep verbatim** the ADO signals the rules key on: the
+   every real personal display name and recipient e-mail address in the source e-mails (the PR
+   author in the action sentence, and any `To:`/`Sent:` recipients in the forwarded wrapper) with
+   the neutral placeholders already used (`Demo User`, `demo.user@example.com`, …). **Keep
+   verbatim** the ADO signals the rules key on: the
    `dev.azure.com` / SafeLinks URLs carrying org + project, the action sentence, and the subject's
    type token. Suggested filenames:
    - `pr-updated-pushed-8419.json` (case 1)
