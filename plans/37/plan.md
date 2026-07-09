@@ -34,9 +34,12 @@ concerns. Scope guardrails — concrete non-goals:
 - **No attachment-forward or deep re-forward reconstruction.** AC §5 lists "forwarded as an
   attachment" and stacked re-forwards as edge cases needing separate handling — those fall back to
   *needs review* rather than bespoke parsing. Inline forwards **are** handled (see approach).
-- **No custom-sender rule engine.** AC §1 says non-native senders "must be categorized by their own
-  rules, not these" — since no such rules exist yet, a non-native e-mail falls back to
-  `Other / Unknown` + *needs review*, not a new rule framework.
+- **No sender-based gating, no custom-sender rule engine.** Categorization does **not** require the
+  `azuredevops@microsoft.com` sender before it will categorize (per review): the app runs locally
+  against a **demo mailbox that copies production ADO mail**, so the sender is frequently a different
+  address. **Folder membership is the scope** — every message in the folder is treated as a candidate
+  ADO notification and categorized purely from its body signals (the ADO URL + the action sentence).
+  Sender/`from` are not used as categorization signals, and no per-sender rule framework is built.
 - **No new dependencies, no DOM library.** Parsing uses the standard library plus the browser-native
   `DOMParser` (already available under jsdom in tests); nothing is added to `package.json`.
 - **No persistence / caching.** In-memory, over the already-fetched bounded set
@@ -59,8 +62,6 @@ unit-testable, exactly as `.claude/rules/categorization-domain.md` requires. It 
 - `categorizeEmails(messages: Message[]): CategorizedEmail[]` — maps the whole in-memory set.
 
 **Internal helpers (each independently testable):**
-- `isNativeNotification(message)` — true when the ADO address `azuredevops@microsoft.com` is the
-  top-level `sender`/`from`, **or** appears in a `From:` line inside the body (inline forward).
 - `extractBodyText(body)` — normalise `ItemBody` to plain text: if `contentType === 'html'`, strip
   markup via `DOMParser`; else use `content` as-is. Used for type/action-sentence matching.
 - `resolveOrgAndProject(body)` — scan the raw body for Azure DevOps URLs, **unwrapping Microsoft
@@ -75,8 +76,8 @@ unit-testable, exactly as `.claude/rules/categorization-domain.md` requires. It 
 **Fallback discipline (`.claude/rules/categorization-domain.md` invariant — every e-mail gets all
 three tags, nothing crashes or is silently dropped):** when a signal is missing, assign the explicit
 sentinel `'Uncategorized'` for customer/project and `Other / Unknown` for type, and set
-`needsReview: true`. `needsReview` is also set for a non-native sender, an unresolved/absent ADO URL,
-and a no-match type.
+`needsReview: true`. `needsReview` is driven by the **body signals only** — an unresolved/absent ADO
+URL or a no-match type — **not** by the sender (the sender is never a gate; see *Keep it simple*).
 
 **Type-detection rule order** (AC §4 — evaluate top-down, stop at first match, case-insensitive;
 action sentence at the top of the body is authoritative, subject is a fallback hint):
@@ -104,10 +105,14 @@ action sentence at the top of the body is authoritative, subject is a fallback h
 | 5 | Work item | "created" | Created |
 | 6 | Other | no rule matched | Unknown (+ needs review) |
 
-**Inline-forward handling (AC §5):** native detection also inspects the body's `From:` line, and the
-action-sentence search runs over the forwarded original content (the org/project URL is found by
-scanning anywhere in the body, so forwarding does not affect it). The `FW:`/`FWD:` subject prefix is
-harmless because matching is "contains", never start-of-line.
+**Forwarded / copied mail (AC §5).** Because the demo mailbox copies (and users may forward) ADO
+notifications, a wrapper header block (`From:`/`Sent:`/`To:`/`Subject:`) and any typed note can sit
+above the original content. The action-sentence search therefore runs over the **forwarded original
+content** (biased below any forwarded header block so a forwarder's own text can't trigger a false
+type match), and the org/project URL is found by scanning **anywhere** in the body — so forwarding
+and the copy flow don't affect resolution. The `FW:`/`FWD:` subject prefix is harmless because
+matching is "contains", never start-of-line. No `azuredevops@microsoft.com` sender check gates any of
+this.
 
 **Wiring:**
 - `useMailDebug` already fetches `Message[]`; add `categorized = categorizeEmails(messages)` (pure,
@@ -124,10 +129,11 @@ debug UI. Pin the shapes.
 
 - **Graph `Message` → `categorizeEmail` (input).** Consumed fields, all optional/nullable in
   `@microsoft/microsoft-graph-types` — the service must treat every one as possibly missing:
-  - `subject?: string | null`
-  - `body?: { contentType?: 'text' | 'html' | null; content?: string | null } | null` (`ItemBody`)
-  - `sender?: { emailAddress?: { address?: string | null } } | null` (`Recipient`)
-  - `from?: { emailAddress?: { address?: string | null } } | null` (`Recipient`)
+  - `subject?: string | null` — fallback hint for type detection.
+  - `body?: { contentType?: 'text' | 'html' | null; content?: string | null } | null` (`ItemBody`) —
+    the primary signal source (ADO URL + action sentence).
+  - `sender` / `from` (`Recipient`) are **not** consumed as categorization signals (the sender is not
+    a gate — see *Keep it simple*). They remain on the carried-through `Message` for the UI.
 - **`CategorizedEmail` (output)** — `src/models/categorization.ts`:
   ```ts
   export type MessageType =
@@ -144,7 +150,7 @@ debug UI. Pin the shapes.
     customer: string;      // ADO organization, or UNCATEGORIZED
     project: string;       // ADO project name or GUID (verbatim), or UNCATEGORIZED
     type: MessageType;     // taxonomy triple; fallback { category: 'Other', subType: 'Unknown' }
-    needsReview: boolean;  // true when any signal was missing / non-native / no type match
+    needsReview: boolean;  // true when a body signal was missing (no ADO URL) / no type match
   }
   ```
   The `Customer` axis = ADO organization, `Project` = ADO project, `Type` = message type
@@ -157,23 +163,29 @@ debug UI. Pin the shapes.
    `.claude/rules/categorization-domain.md` (the `(Customer, Project, Type)` triple; explicit
    fallback value), `.claude/rules/frontend-architecture.md` (create `src/models/` on first need).
 2. **Implement the categorization service.** Create `src/services/categorization/categorizationService.ts`
-   exporting `categorizeEmail` + `categorizeEmails`, with the private helpers `isNativeNotification`,
-   `extractBodyText`, `resolveOrgAndProject`, `determineType`. Pure/deterministic; no I/O. Honour the
-   fallback discipline (all three tags always set; `needsReview` on any missing signal; never throw
-   on missing fields). Rules: `.claude/rules/categorization-domain.md` (centralized pure service,
+   exporting `categorizeEmail` + `categorizeEmails`, with the private helpers `extractBodyText`,
+   `resolveOrgAndProject`, `determineType`. Pure/deterministic; no I/O; **no sender gating**. Honour
+   the fallback discipline (all three tags always set; `needsReview` on any missing body signal; never
+   throw on missing fields). Rules: `.claude/rules/categorization-domain.md` (centralized pure service,
    every e-mail tagged, never crash/drop), `.claude/rules/frontend-architecture.md` (business logic
    in the service, not components).
-3. **Capture sample-e-mail fixtures.** Add anonymised raw `Message` fixtures under
-   `src/services/categorization/__fixtures__/` — at least one per row of the story's reference-examples
-   table (§7) and one per type rule, plus a SafeLink-wrapped case, a GUID-project case, an inline-forward
-   case, a non-native case, and a no-signal case. Rule: `.claude/rules/testing.md` (tests driven by
-   real sample e-mails captured as fixtures).
+3. **Build fixtures from the demo-message set.** The real sample corpus is the 14 Outlook `.msg`
+   files under `/design/demo-messages/` (one per row of the story's reference-examples table §7).
+   Convert each into a committed JSON fixture matching the consumed Graph `Message` shape
+   (`subject`, `body.contentType`, `body.content`, and `sender`/`from` as captured — even though the
+   service ignores them) under `src/services/categorization/__fixtures__/`, anonymising personal data
+   where needed. Tests read the **committed JSON**, never the `.msg` files (which are not git-tracked),
+   so the suite stays hermetic. Also add small hand-authored fixtures for cases the `.msg` set may not
+   cover: a SafeLink-wrapped URL, a `_`-prefixed first path segment, a GUID project, a copied/forwarded
+   wrapper, and a no-ADO-URL message. Rule: `.claude/rules/testing.md` (tests driven by real sample
+   e-mails captured as fixtures), `.claude/rules/frontend-architecture.md` (deterministic/reproducible).
 4. **Unit-test every rule.** Create `src/services/categorization/categorizationService.test.ts`
    pinning each fixture to its expected `(customer, project, type, needsReview)`: org/project from
    `dev.azure.com` and `visualstudio.com`, SafeLink unwrap, `_`-segment skip, GUID verbatim, each
-   type sub-type, inline forward, non-native → `Other/Unknown`+review, and no-URL → `Uncategorized`+review.
-   Rule: `.claude/rules/testing.md` (categorization service MUST be unit-tested; each rule pinned;
-   test pure logic directly).
+   type sub-type, a copied/forwarded message categorized correctly **regardless of sender**, and
+   no-URL → `Uncategorized` + review. The 14 demo messages assert exactly the §7 reference-examples
+   table. Rule: `.claude/rules/testing.md` (categorization service MUST be unit-tested; each rule
+   pinned; test pure logic directly).
 5. **Wire the service into `useMailDebug`.** In `src/components/MailDebug/useMailDebug.ts`, compute
    `categorizeEmails(messages)` and expose it (`{ status, messages, categorized, error, folderName }`).
    Rule: `.claude/rules/frontend-architecture.md` (logic in the hook, not JSX; consume the service,
@@ -196,10 +208,13 @@ debug UI. Pin the shapes.
   explicit fallback but not its spelling; I chose the single string `'Uncategorized'` for both
   customer and project plus a separate `needsReview` flag (so the UI can highlight review items).
   Reviewer may prefer a distinct per-axis sentinel or an enum.
-- **Fixtures come from real `DevOps`-folder mail captured via the existing `MailDebug` dump,
-  anonymised.** The repo has no raw sample e-mails yet; the coder captures representative raw
-  `Message` JSON from the live dump (story 36's whole purpose) and anonymises it into fixtures. If a
-  curated sample set exists elsewhere, point me at it — otherwise this is the source.
+- **Fixture source = the `/design/demo-messages/` `.msg` set — resolved (review).** The reviewer
+  pointed to 14 Outlook `.msg` files (one per §7 reference-examples row) as the sample corpus.
+  **New sub-decision (open):** those `.msg` files are **not git-tracked** and are a binary format, so
+  I plan to convert them **once** into committed JSON fixtures (in the consumed `Message` shape) that
+  the tests read — keeping the suite hermetic and adding **no** `.msg`-parsing dependency — rather
+  than parsing the `.msg` files live at test time. Prefer committing a `.msg` parser as a devDependency
+  and reading the files directly instead?
 - **Body parsing: `DOMParser` for HTML → text + regex for URL extraction.** HTML bodies are converted
   to plain text with the browser-native `DOMParser` (available under jsdom in tests) for phrase
   matching, while ADO/SafeLink URLs are pulled with a regex over the raw body (hrefs aren't in the
@@ -212,9 +227,12 @@ debug UI. Pin the shapes.
 - **Inline forwards handled; attachment-forwards and stacked re-forwards fall back to *needs
   review*.** AC §5 flags those as separate-handling edge cases; I scope them out (flagged, not
   parsed) rather than build attachment/MIME parsing now. OK to defer?
-- **Non-native senders → `Other / Unknown` + *needs review* (no custom-sender rules built).** AC §1
-  says non-native mail needs "its own rules"; none exist, so it is flagged rather than force-fit.
-  Reviewer may want a distinct "non-native" marker instead of `Unknown`.
+- **No sender gating — categorize every folder message from its body — resolved (review).** I first
+  planned an `azuredevops@microsoft.com` native-sender gate (non-native → `Other/Unknown` + review).
+  The reviewer clarified the app runs against a **demo mailbox that copies production ADO mail**, so
+  the sender is often a different address; folder membership alone is the scope and the sender must
+  not gate categorization. The gate and the `isNativeNotification` helper are removed; `needsReview`
+  now depends on body signals only.
 
 ## Considerations
 - **GUID vs. name projects.** A project segment may be a GUID; it is shown verbatim (no translation
@@ -224,7 +242,7 @@ debug UI. Pin the shapes.
   a stray "failed" in a non-build e-mail is unlikely — but the fixtures should include a
   deployment-failed case to prove Release isn't shadowed. Monitor if a real sample misclassifies.
 - **Graph field nullability.** Every consumed `Message` field is optional/nullable; the service must
-  never assume presence (missing body/sender → fallbacks + review, never a throw).
+  never assume presence (missing body → fallbacks + review, never a throw).
 - **HTML entities / encoded URLs.** SafeLink `url` params are percent-encoded and may be
   HTML-entity-escaped inside hrefs; decode both before parsing the path.
 
@@ -239,10 +257,9 @@ debug UI. Pin the shapes.
     real project resolved.
   - Project segment is a GUID → project set to the GUID verbatim, `needsReview` stays per other signals.
   - No ADO URL anywhere in the body → customer & project = `'Uncategorized'`, `needsReview: true`.
-  - Inline-forwarded native notification (`From: Azure DevOps …` in body, `FW:` subject) → still
-    recognised native, correct org/project/type.
-  - Non-native sender → `Other / Unknown`, `needsReview: true`.
-  - Missing `body` / missing `sender` → fallbacks applied, **no throw**.
+  - Copied/forwarded message whose sender is **not** `azuredevops@microsoft.com` (wrapper header +
+    `FW:` subject) → still categorized correctly from body signals (sender never gates).
+  - Missing `body` entirely → fallbacks applied, `needsReview: true`, **no throw**.
   - `deployment failed` e-mail → `Release / Deployment failed`, not shadowed by the Build `"failed"`
     rule (ordering proof).
 - **Live verification (manual): needs manual live verification before merge.** After the automated
@@ -266,11 +283,12 @@ debug UI. Pin the shapes.
       match, case-insensitive), subject only as a fallback (AC §4).
 - [ ] The full type taxonomy is representable and produced: Work item / Pull request / Build /
       Release / Other with their sub-types (AC §3).
-- [ ] Native detection works for both direct sends and inline forwards (`azuredevops@microsoft.com`
-      as sender or in a body `From:` line); non-native senders fall back to `Other/Unknown` + review
-      (AC §1, §5).
-- [ ] Every rule is covered by a unit test driven by captured sample-e-mail fixtures, and the full
-      Vitest suite passes (testing.md; AC "make sure every rule is testable").
+- [ ] Categorization does **not** gate on the sender: every folder message is categorized from its
+      body signals, so copied/forwarded mail from a non-`azuredevops@microsoft.com` address is still
+      categorized correctly (review decision; AC §5).
+- [ ] Every rule is covered by a unit test driven by fixtures derived from the `/design/demo-messages/`
+      `.msg` corpus (converted to committed JSON), the 14 demo messages match the §7 reference-examples
+      table, and the full Vitest suite passes (testing.md; AC "make sure every rule is testable").
 - [ ] The categorization logic lives in the service; components/hooks consume it and never re-derive
       tags (frontend-architecture.md).
 - [ ] The debug component prints the categorized e-mails **next to** the raw Graph content (AC
@@ -282,7 +300,11 @@ debug UI. Pin the shapes.
 ## Files/areas affected
 - **New:** `src/models/categorization.ts`, `src/services/categorization/categorizationService.ts`,
   `src/services/categorization/categorizationService.test.ts`,
-  `src/services/categorization/__fixtures__/` (sample-e-mail fixtures).
+  `src/services/categorization/__fixtures__/` (committed JSON fixtures derived from the
+  `/design/demo-messages/` `.msg` corpus + a few hand-authored edge cases).
+- **Source (read-only, not modified):** `/design/demo-messages/*.msg` — the demo sample corpus the
+  JSON fixtures are built from (currently untracked; committing them or the derived JSON is a repo
+  decision for the coder/reviewer).
 - **Changed:** `src/components/MailDebug/useMailDebug.ts` (compute + expose `categorized`),
   `src/components/MailDebug/MailDebug.tsx` (render categorized triples beside raw JSON).
 - **Untouched:** the mail fetch path (`services/mail`, `services/graph`), auth/MSAL config, `App.tsx`
