@@ -39,12 +39,12 @@ real list/categorization UI lands — deleting this folder and swapping the visu
   store, no URL/persistence (the "state approach" in `frontend-architecture.md` is still
   deliberately undecided; local state suffices, same call stories 38/39 made). Filter state stays in
   `useOrganizer`, untouched.
-- **No new dependencies (recommended path).** The list uses Fluent v9 `Table`; the panel uses Fluent
-  v9 `Drawer`, both already in `@fluentui/react-components@9.74.3`. (The body-sanitisation open
-  question below is the one place a dependency *could* enter — see it.)
-- **Non-goal: a `needsReview` column.** The AC pins exactly five columns; whether to still surface
-  the engine's `needsReview` flag (which `MailDebug` showed as a badge) is raised as an open
-  question rather than silently added or dropped.
+- **No new dependencies.** The list uses Fluent v9 `Table`; the panel uses Fluent v9 `InlineDrawer`,
+  both already in `@fluentui/react-components@9.74.3`. HTML bodies render in a sandboxed `<iframe>`
+  (ratified — see *Assumptions*), so no sanitiser dependency enters.
+- **Non-goal: a `needsReview` column.** The AC pins exactly five columns; the engine's `needsReview`
+  flag (which `MailDebug` showed as a badge) is still surfaced, but as a small in-row marker — **not
+  a sixth column** (ratified — see *Assumptions*).
 
 ## Implementation approach
 Add a new **`EmailList`** component in its own folder, following the established
@@ -69,17 +69,26 @@ or an `appearance`-styled row) and calls `openEmail(id)`. Cells:
   `../SidebarFilters/facetFilters`, do not re-format inline (keeps the label identical to the
   sidebar/badges and honours "consume tags verbatim").
 
+Rows for e-mails with `needsReview === true` carry a **small, unobtrusive warning marker** (a Fluent
+`Badge`/icon in the subject cell, as `MailDebug` did) — no sixth column (ratified).
+
 Row identity/selection keys on `email.message.id` (Graph returns `id` on every message even though
 it is not in the `$select`; `MailDebug` already relies on it, falling back to the array index for the
 React `key`).
 
-**Body panel.** A Fluent `Drawer` (see the inline-vs-overlay open question) opened from
-`useEmailList`'s `isPanelOpen`, with a header showing the selected e-mail's subject and a close
-button (`DrawerHeader`/`DrawerHeaderTitle` + a dismiss `Button`), and a body region rendering the
-formatted message body (see the body-rendering open question for *how* the HTML is rendered safely).
-Because selection lives in state and the drawer is non-modal/inline, clicking another row while the
-drawer is open simply updates the selected id and the body re-renders — satisfying the non-blocking
-requirement with no extra wiring.
+**Body panel.** A Fluent **`InlineDrawer`** (ratified — part of the layout, no modal backdrop, so
+inherently non-blocking) opened from `useEmailList`'s `isPanelOpen`, docked on the right of the view
+region, with a header showing the selected e-mail's subject and a close button
+(`DrawerHeader`/`DrawerHeaderTitle` + a dismiss `Button`), and a body region rendering the formatted
+message body (see the ratified body-rendering approach below). Because selection lives in state and
+the drawer is inline, clicking another row while the drawer is open simply updates the selected id
+and the body re-renders — satisfying the non-blocking requirement with no extra wiring.
+
+**Body rendering (ratified).** `resolveBody` (below) discriminates on `body.contentType`:
+- `html` → render inside a **sandboxed `<iframe srcDoc={content}>`** with a restrictive `sandbox`
+  attribute (no `allow-scripts`, no `allow-same-origin`), which neutralises embedded scripts and
+  isolates the e-mail's CSS with zero added dependency. Never use `dangerouslySetInnerHTML`.
+- `text` (or missing) → render as **escaped preformatted text** (no iframe needed).
 
 **Selection logic in `useEmailList`.**
 - `selectedId: string | null` (default `null`), `isPanelOpen: boolean` (default `false`).
@@ -88,22 +97,25 @@ requirement with no extra wiring.
 - `closePanel()`: `isPanelOpen = false` (keeps `selectedId` so the drawer's close animation has
   content; a later open overwrites it).
 - `selectedEmail` = `emails.find(e => e.message.id === selectedId) ?? null`, memoised.
-- See the "selected e-mail filtered out" open question for what happens when `selectedEmail`
-  resolves to `null` while the panel is open.
+- **Selected e-mail filtered out (ratified):** when filters change so the open e-mail leaves the
+  `filtered` set, **do nothing** — leave the panel open showing the last-selected body until the user
+  closes it or clicks another row. No effect force-closes it. (Note `selectedEmail` will resolve to
+  `null` once the row is gone; the drawer keeps rendering its last content — capture the body to
+  render so it survives the row leaving the set, or simply keep the panel mounted with its prior
+  props.)
 
 **Pure helpers (colocated, exported for direct unit test).**
 - `formatReceivedDate(iso: string | null | undefined): string` — format an ISO `receivedDateTime`
   for display via `Intl.DateTimeFormat`/`toLocaleString`; return `''` for missing/unparseable input
   (never throw).
-- `resolveBody(message): { html: string } | { text: string }` — read `message.body?.contentType`
-  and `message.body?.content`, returning a discriminated result the component renders (`html` →
-  isolated/sanitised HTML per the open question; `text` → escaped preformatted text). Empty/missing
-  body → `{ text: '' }`.
+- `resolveBody(message): ResolvedBody` — read `message.body?.contentType` and `message.body?.content`,
+  returning a discriminated result the component renders (`html` → sandboxed iframe; `text` → escaped
+  preformatted text). Empty/missing body → `{ kind: 'text', content: '' }`.
 
 **Wire-up.** In `src/components/Organizer/Organizer.tsx`, swap the `MailDebug` import/usage for
 `EmailList`, passing the same `{ status, error, folderName, emails: filtered }` props. Then remove
-the `src/components/MailDebug/` folder (pending the removal open question). No change to
-`CustomerTabs`, `SidebarFilters`, `useOrganizer`, or the data hook.
+the `src/components/MailDebug/` folder (ratified). No change to `CustomerTabs`, `SidebarFilters`,
+`useOrganizer`, or the data hook.
 
 ## Data contracts
 Module boundaries introduced by this change: `Organizer → EmailList` (props) and
@@ -148,19 +160,21 @@ renamed or transformed across the boundary beyond the two pure formatters above;
    colocated hook, not JSX; reuse utilities; bounded in-memory set — no re-fetch),
    `categorization-domain.md` (consume the engine's tags verbatim; filter/read only in memory).*
 2. **Add the presentational `src/components/EmailList/EmailList.tsx`.** Loading (`Spinner`) / error /
-   empty states, and on success a Fluent `Table` (five columns, clickable rows) plus the body
-   `Drawer`. Reuse `typeLabel` from `../SidebarFilters/facetFilters` for the Type column; style with
-   `makeStyles`/`tokens`. Render the body per the resolved body-rendering decision (open question).
-   *Rules: `frontend-architecture.md` (own folder; presentational component + colocated hook; Fluent
-   components/tokens over hand-rolled CSS; "Center: a simple list view" layout invariant).*
+   empty states, and on success a Fluent `Table` (five columns, clickable rows; a small `needsReview`
+   marker in the subject cell) plus the body `InlineDrawer`. Reuse `typeLabel` from
+   `../SidebarFilters/facetFilters` for the Type column; style with `makeStyles`/`tokens`. Render the
+   body per the ratified approach (sandboxed `<iframe srcDoc>` for `html`, escaped preformatted text
+   for `text`). *Rules: `frontend-architecture.md` (own folder; presentational component + colocated
+   hook; Fluent components/tokens over hand-rolled CSS; "Center: a simple list view" layout
+   invariant).*
 3. **Swap the view in `src/components/Organizer/Organizer.tsx`.** Replace the `MailDebug`
    import/usage with `EmailList` (same `{ status, error, folderName, emails: filtered }` props);
    adjust the `view` container only if the drawer layout needs it. Leave `CustomerTabs`,
    `SidebarFilters`, and `useOrganizer` untouched. *Rules: `frontend-architecture.md` (UI layout
    invariants: fixed top bar, tabs across the top, left sidebar, center list; logic/rendering split).*
-4. **Remove `src/components/MailDebug/`** (pending the removal open question) — its doc comment
-   marks it temporary and deletion-on-real-UI as the whole removal. *Rules:
-   `frontend-architecture.md` (keep the tree honest — no dead temporary components).*
+4. **Remove `src/components/MailDebug/`** (ratified) — its doc comment marks it temporary and
+   deletion-on-real-UI as the whole removal. *Rules: `frontend-architecture.md` (keep the tree
+   honest — no dead temporary components).*
 5. **Tests.** `useEmailList.test.ts` (`renderHook`) for the pure helpers and selection behavior;
    `EmailList.test.tsx` rendering through the `FluentProvider`/`webLightTheme` wrapper (rows +
    columns render; click opens the panel; close closes; clicking another row swaps the body while
@@ -170,38 +184,34 @@ renamed or transformed across the boundary beyond the two pure formatters above;
    clean. *Rules: `frontend-architecture.md` ("what done looks like"), `testing.md`.*
 
 ## Assumptions & open questions
-- **HTML body rendering — recommend a sandboxed `<iframe>`.** ADO notification bodies are HTML
-  (`body.contentType === 'html'`). Rendering untrusted HTML via `dangerouslySetInnerHTML` is an XSS
-  vector. Recommendation: render `html` bodies inside a **sandboxed `<iframe srcDoc={content}>`**
-  with a restrictive `sandbox` attribute (no `allow-scripts`, no `allow-same-origin`) — this
-  neutralises embedded scripts and isolates the e-mail's CSS **without adding a dependency**; `text`
-  bodies render as escaped preformatted text. The considered alternative is adding **DOMPurify**
-  (a new pinned dependency) to sanitise into in-page HTML, which integrates styling better but pulls
-  in a dependency and still needs care. Chosen the iframe for zero-dependency isolation; the
-  reviewer may prefer DOMPurify.
-- **Side-panel component — recommend Fluent v9 `InlineDrawer`.** The panel must be **non-blocking**
-  (list stays interactive; clicking rows swaps the body). Recommendation: `InlineDrawer` (part of the
-  layout, no modal backdrop) opened on the right of the view — the simplest thing that is inherently
-  non-blocking. The alternative is `OverlayDrawer` with `modalType="non-modal"` (floats over content,
-  no blocking backdrop). Chose inline for simplicity; the reviewer may prefer the overlay style.
-- **Selected e-mail filtered out while the panel is open — recommend keep showing it until closed.**
-  If filters change so the open e-mail leaves the `filtered` set, the recommendation is to **leave
-  the panel showing the last-selected body** until the user closes it or clicks another row (no
-  effect that force-closes it) — simplest and least surprising mid-read. The alternative is to
-  auto-close the panel when `selectedEmail` becomes `null`. Chose keep-open; the reviewer may prefer
-  auto-close.
-- **Remove `MailDebug` entirely — recommend yes.** This story is the real list view, which is the
-  condition `MailDebug`'s own doc comment sets for its removal. Recommendation: delete
-  `src/components/MailDebug/` and its usage. The alternative is keeping it around (behind nothing, or
-  a toggle) as a raw-payload debugging aid during the transition. Chose removal to keep the tree
-  clean; the reviewer may want to retain it briefly.
-- **Surface `needsReview` in the list — recommend a subtle per-row marker, not a sixth column.** The
-  AC lists exactly five columns, but `MailDebug` currently shows a "needs review" badge and dropping
-  it silently loses signal (`categorization-domain.md` values visibility of flagged rows).
-  Recommendation: keep the five AC columns and add a **small, unobtrusive `needsReview` indicator**
-  on the row (e.g. a warning badge/icon in the subject cell), not a new column. Alternatives:
-  omit it entirely (strict AC), or add a dedicated column. Chose the subtle marker; the reviewer may
-  prefer strict-AC omission.
+All five open questions below were **settled by plan review (PR #20) and folded into the plan** — the
+reviewer confirmed each recommendation. They remain documented here (permanent living documentation)
+as the ratified decisions, no longer open:
+
+- **HTML body rendering → sandboxed `<iframe srcDoc>`** *(ratified)*. ADO notification bodies are HTML
+  (`body.contentType === 'html'`), and `dangerouslySetInnerHTML` is an XSS vector. `html` bodies
+  render inside a **sandboxed `<iframe srcDoc={content}>`** with a restrictive `sandbox` attribute
+  (no `allow-scripts`, no `allow-same-origin`) — neutralises embedded scripts and isolates the
+  e-mail's CSS **with no added dependency**; `text` bodies render as escaped preformatted text. The
+  considered alternative — adding **DOMPurify** (a new pinned dependency) to sanitise into in-page
+  HTML — was declined in favour of zero-dependency isolation.
+- **Side-panel component → Fluent v9 `InlineDrawer`** *(ratified)*. The panel must be **non-blocking**
+  (list stays interactive; clicking rows swaps the body). `InlineDrawer` (part of the layout, no modal
+  backdrop) docked on the right of the view is inherently non-blocking and simplest; the
+  `OverlayDrawer` + `modalType="non-modal"` alternative was declined.
+- **Selected e-mail filtered out while the panel is open → keep it showing** *(ratified)*. If filters
+  change so the open e-mail leaves the `filtered` set, the panel **stays open showing the
+  last-selected body** until the user closes it or clicks another row (no effect force-closes it) —
+  simplest and least surprising mid-read. Auto-closing on `selectedEmail === null` was declined.
+- **Remove `MailDebug` entirely → yes** *(ratified)*. This story is the real list view — the exact
+  condition `MailDebug`'s own doc comment sets for its removal — so `src/components/MailDebug/` and
+  its usage are deleted. Retaining it as a transitional raw-payload debugging aid was declined.
+- **Surface `needsReview` → a subtle per-row marker, no sixth column** *(ratified)*. The AC lists
+  exactly five columns; `MailDebug` currently shows a "needs review" badge and dropping it silently
+  loses signal (`categorization-domain.md` values visibility of flagged rows). The five AC columns
+  are kept and a **small, unobtrusive `needsReview` indicator** (a warning badge/icon in the subject
+  cell) is added — **not** a dedicated column. Omitting it entirely and adding a dedicated column were
+  both declined.
 
 ## Considerations
 - **Bounded, in-memory set.** The list renders the already-fetched ≤~100-e-mail `filtered` set with
@@ -239,6 +249,10 @@ be unit-tested and component tests mounted through the provider wrapper), so thi
     empty state (not a crash, no header-only confusion); loading → `Spinner`, error → the error
     message; clicking a row opens the panel (subject shown in the header); the close control closes
     it; clicking a second row while open updates the panel to that e-mail.
+  - A `needsReview: true` e-mail row shows the marker; a `needsReview: false` row does not.
+  - Body rendering: an `html`-body e-mail → the drawer contains the sandboxed `<iframe>` carrying the
+    expected `srcDoc` (assert the attribute/`sandbox`, not the rendered inner layout — jsdom does not
+    render iframe `srcDoc`); a `text`-body e-mail → the text is shown as preformatted content.
 
 ## Definition of done
 - [ ] The center shows a **list view** of the filtered e-mails, **one row per e-mail** (AC §1),
@@ -255,24 +269,25 @@ be unit-tested and component tests mounted through the provider wrapper), so thi
 - [ ] The list consumes the engine's `(customer, project, type)` tags **verbatim**; no
       re-categorization and no changes to the engine, mail service, or filter composition
       (`categorization-domain.md`, `frontend-architecture.md`).
-- [ ] HTML bodies are rendered **safely** (no unsanitised `dangerouslySetInnerHTML`), per the
-      ratified body-rendering decision.
-- [ ] `MailDebug` is removed (pending its open question) and nothing references it.
+- [ ] HTML bodies are rendered **safely** in a sandboxed `<iframe srcDoc>` (no
+      `dangerouslySetInnerHTML`); `text` bodies render as escaped preformatted text (ratified).
+- [ ] `needsReview` e-mails carry a small in-row marker (no sixth column); the five AC columns are
+      unchanged (`categorization-domain.md` visibility invariant, ratified).
+- [ ] `MailDebug` is removed (`src/components/MailDebug/` deleted) and nothing references it.
 - [ ] New tests cover the pure helpers, the `useEmailList` selection behavior, and an `EmailList`
       render/interaction test through the `FluentProvider` wrapper; the full `npm run test` suite
       passes (`testing.md`).
 - [ ] Type-checks and builds cleanly (`npm run build`); no ESLint errors and Prettier-clean
       (`npm run lint`, `npm run format:check`).
-- [ ] No new dependencies beyond any explicitly ratified for body sanitisation; no persistence/
-      backend/URL state introduced (`frontend-architecture.md`).
+- [ ] No new dependencies (the sandboxed-iframe approach adds none); no persistence/backend/URL
+      state introduced (`frontend-architecture.md`).
 
 ## Files/areas affected
 - `src/components/EmailList/useEmailList.ts` — **new** (`formatReceivedDate`, `resolveBody`,
   `useEmailList` selection hook, `EmailListProps`/`ResolvedBody`/`UseEmailListResult` types).
-- `src/components/EmailList/EmailList.tsx` — **new** (presentational `Table` list + body `Drawer`).
+- `src/components/EmailList/EmailList.tsx` — **new** (presentational `Table` list + body
+  `InlineDrawer`).
 - `src/components/EmailList/useEmailList.test.ts` — **new** (pure helpers + hook selection tests).
 - `src/components/EmailList/EmailList.test.tsx` — **new** (render/interaction via provider wrapper).
 - `src/components/Organizer/Organizer.tsx` — **edit** (swap `MailDebug` → `EmailList`).
-- `src/components/MailDebug/MailDebug.tsx` (+ folder) — **remove** (pending the removal open question).
-</content>
-</invoke>
+- `src/components/MailDebug/MailDebug.tsx` (+ folder) — **remove** (ratified).
