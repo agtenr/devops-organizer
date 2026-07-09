@@ -259,6 +259,18 @@ describe('categorizeEmail — fallback & sender-independence', () => {
   });
 });
 
+describe('determineType — Other sub-types', () => {
+  it('classifies an organization-administration notification as Other · Admin', () => {
+    const result = categorizeEmail(
+      message(
+        'You were added as an administrator. https://dev.azure.com/Contoso/WebApp/_settings/organization',
+        'Organization settings changed',
+      ),
+    );
+    expect(result.type).toEqual({ category: 'Other', subType: 'Admin' });
+  });
+});
+
 describe('determineType ordering', () => {
   it('classifies a deployment-failed e-mail as Release, not shadowed by the Build rule', () => {
     const result = categorizeEmail(

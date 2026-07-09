@@ -144,6 +144,18 @@ function classify(text: string): MessageType | null {
   ) {
     return { category: 'Other', subType: 'Access request' };
   }
+  // Other organization-administration notifications with no work artifact.
+  if (
+    includesAny(
+      text,
+      'as an administrator',
+      'administrator of',
+      'organization settings',
+      'organization owner',
+    )
+  ) {
+    return { category: 'Other', subType: 'Admin' };
+  }
 
   // 2. Build. Anchored on the contiguous action phrase so an incidental "build" (e.g. in a branch
   // or repo name) plus a stray "failed"/"succeeded" elsewhere in the body cannot mis-fire.
