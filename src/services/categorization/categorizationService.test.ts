@@ -145,6 +145,53 @@ describe('categorizeEmail — demo corpus (story 37 §7 reference examples)', ()
   });
 });
 
+/**
+ * Story 44: four demo-corpus e-mails that previously mis-categorized, now pinned to their corrected
+ * triple. Each is a real message reduced to a committed, anonymised fixture (see the fixtures
+ * README). All four expose a friendly project name in their ADO URL, so none is flagged for review.
+ */
+const STORY44_CASES = [
+  {
+    file: 'pr-updated-pushed-8419',
+    customer: 'colruytgroupcom',
+    project: 'SC ComCol',
+    category: 'Pull request',
+    subType: 'Updated',
+  },
+  {
+    file: 'pr-created-8419',
+    customer: 'colruytgroupcom',
+    project: 'SC ComCol',
+    category: 'Pull request',
+    subType: 'Created',
+  },
+  {
+    file: 'pr-published-278',
+    customer: 'AZGL-DLWR',
+    project: 'Meeting App',
+    category: 'Pull request',
+    subType: 'Published',
+  },
+  {
+    file: 'build-cancelled-91801',
+    customer: 'DLWR-DLWR',
+    project: 'DLWR.DataSync internship',
+    category: 'Build',
+    subType: 'Cancelled',
+  },
+] as const;
+
+describe('categorizeEmail — story 44 corrected types', () => {
+  it.each(STORY44_CASES)('$file → $customer / $project / $category · $subType', (c) => {
+    const result = categorizeEmail(loadFixture(c.file));
+    expect(result.customer).toBe(c.customer);
+    expect(result.project).toBe(c.project);
+    expect(result.type).toEqual({ category: c.category, subType: c.subType });
+    // All four resolve a friendly project name from the URL, so none is flagged for review.
+    expect(result.needsReview).toBe(false);
+  });
+});
+
 /** Builds a minimal Graph message for the synthetic edge cases. */
 const message = (body: string, subject = '', contentType: 'html' | 'text' = 'text'): Message => ({
   subject,
