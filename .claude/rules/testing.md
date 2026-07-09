@@ -35,7 +35,16 @@
 - First run on a fresh machine needs `npx playwright install` to fetch browser binaries.
 - Current coverage is a single hello-world smoke test (`e2e/smoke.spec.ts`); grow E2E
   coverage as real UI stabilizes.
+- **jsdom has no layout/CSS engine — it cannot verify visual acceptance.** A jsdom component
+  test happily passes DOM/role/text assertions for an element that is present but **0px wide**,
+  a panel that never actually became visible, or columns rendered at the wrong widths. So a story
+  whose acceptance is inherently **visual or interactive** (layout, sizing, a panel becoming
+  visible, drag/resize) must be exercised in a **real browser** (Playwright E2E — already set up)
+  before it is called done; jsdom component tests alone are **insufficient** for such acceptance.
+  (Stories 40 coder/reviewer.)
 
 ## What "done" looks like
 - A change to categorization behavior ships with new/updated unit tests, and the full
   Vitest suite passes (`npm run test`).
+- A change whose acceptance is **visual/layout/interactive** is verified in a **real browser**
+  (Playwright E2E) — not by jsdom component tests alone, which cannot see layout or sizing.
