@@ -50,3 +50,11 @@
   is insufficient because it omits the message body. The target folder is **custom** (not a
   well-known folder), so it is resolved by **display name → id** (`$filter=displayName eq …`) rather
   than the well-known-name shortcut, with the folder name supplied via `VITE_MAIL_FOLDER`.
+- **Project-GUID map persistence (story 42, done):** the app persists a GUID→friendly-name map in the
+  signed-in user's OneDrive **app folder** (`/me/drive/special/approot`), so the read/write file scope
+  **`Files.ReadWrite`** is added to the **sign-in** request (`loginRequest.scopes`) and the Graph client
+  scopes — consented once at sign-in, acquired silently thereafter like `Mail.Read`. The narrower
+  **`Files.ReadWrite.AppFolder`** is **not** used: it is valid only for personal Microsoft accounts and
+  is unsupported for the **organizational (Entra ID) accounts** this app signs in with, so
+  `Files.ReadWrite` is the least-privilege scope that actually works here (the data still lives in the
+  dedicated app folder). This is the first write scope; it stays scoped to files (never broader).
