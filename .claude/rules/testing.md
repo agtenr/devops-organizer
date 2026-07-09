@@ -7,6 +7,18 @@
   `npm run test`.
 - The **categorization service MUST be unit-tested**. Tests are driven by **real sample
   emails** captured as fixtures — each categorization rule is pinned by a test.
+- **Sample-email corpus (canonical source).** The reference corpus is the **14 Outlook `.msg`
+  files under `design/demo-messages/`** — one per row of story #37's reference-examples table.
+  This is the single source planners/coders draw fixtures from; do **not** invent an ad-hoc
+  capture path per story.
+- **Fixture format & conversion.** `.msg` is binary and the Vitest suite **cannot read it
+  directly**. Convert each `.msg` into a **machine-readable, tracked fixture** the suite loads —
+  a per-message file (e.g. JSON) capturing the fields categorization consumes (**subject, body,
+  the ADO URL, and expected `(Customer, Project, Type)` triple** plus `needsReview` where it
+  applies). The committed fixtures — not the raw `.msg` files — are what the tests import.
+- **Anonymisation.** Committed fixtures must be **anonymised**: strip real recipient identities
+  and personal data, keeping only the ADO signals the rules key on (org/project in the URL, the
+  action sentence, message type). Real personal mailbox content is not committed to the repo.
 - Prefer testing the pure service logic directly over testing it through the UI.
 - **Render component tests through the app's provider wrapper.** React component tests
   mount the component inside the same `FluentProvider` (with `webLightTheme`) the app mounts
