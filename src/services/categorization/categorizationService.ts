@@ -4,6 +4,7 @@ import {
   UNKNOWN_TYPE,
   type CategorizedEmail,
   type MessageType,
+  type ProjectGuidMap,
 } from '../../models/categorization';
 
 /**
@@ -233,25 +234,40 @@ export function determineType(bodyText: string, subject: string): MessageType | 
   return classify(actionRegion(bodyText).toLowerCase()) ?? classify(subject.toLowerCase());
 }
 
-/** Categorizes a single raw Graph message into its `(Customer, Project, Type)` triple. */
-export function categorizeEmail(message: Message): CategorizedEmail {
+/**
+ * Categorizes a single raw Graph message into its `(Customer, Project, Type)` triple.
+ *
+ * When the project resolves to a bare GUID, it is looked up (case-insensitively) in `projectMap`
+ * (story 42): a hit replaces the GUID with the user-mapped friendly name and clears the GUID reason
+ * for `needsReview`; a miss leaves the GUID verbatim and flags it (`projectIsUnresolvedGuid`). The map
+ * is data passed in — the service stays pure/deterministic (no I/O).
+ */
+export function categorizeEmail(message: Message, projectMap: ProjectGuidMap = {}): CategorizedEmail {
   const orgProject = resolveOrgAndProject(message.body?.content);
   const type = determineType(extractBodyText(message.body), message.subject ?? '');
 
-  // The project resolved to a bare GUID (the URL carried no name). Per AC §2.5/§6 an untranslatable
-  // GUID is surfaced verbatim but flagged for review, so a human can map it to a friendly name.
-  const projectIsUntranslatableGuid = orgProject !== undefined && GUID_RE.test(orgProject.project);
+  // Resolve a bare project GUID through the persistent mapping when one exists. A real ADO work-item/
+  // release URL carries only the GUID; the map is the user's GUID→friendly-name resolution (AC §2.5/§6
+  // fallback stays for the unmapped case: emit the GUID verbatim and flag it, never invent a name).
+  const rawProject = orgProject?.project;
+  const projectIsGuid = rawProject !== undefined && GUID_RE.test(rawProject);
+  const mappedName = projectIsGuid ? projectMap[rawProject.toLowerCase()] : undefined;
+  const projectIsUnresolvedGuid = projectIsGuid && mappedName === undefined;
 
   return {
     message,
     customer: orgProject?.customer ?? UNCATEGORIZED,
-    project: orgProject?.project ?? UNCATEGORIZED,
+    project: mappedName ?? rawProject ?? UNCATEGORIZED,
     type: type ?? UNKNOWN_TYPE,
-    needsReview: orgProject === undefined || type === null || projectIsUntranslatableGuid,
+    needsReview: orgProject === undefined || type === null || projectIsUnresolvedGuid,
+    projectIsUnresolvedGuid,
   };
 }
 
-/** Categorizes the whole in-memory set of fetched messages. */
-export function categorizeEmails(messages: Message[]): CategorizedEmail[] {
-  return messages.map(categorizeEmail);
+/** Categorizes the whole in-memory set of fetched messages against the active project mapping. */
+export function categorizeEmails(
+  messages: Message[],
+  projectMap: ProjectGuidMap = {},
+): CategorizedEmail[] {
+  return messages.map((message) => categorizeEmail(message, projectMap));
 }
