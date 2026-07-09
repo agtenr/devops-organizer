@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CategorizedEmail, MessageType } from '../../models/categorization';
-import { typeKey } from '../SidebarFilters/useSidebarFilters';
+import { typeKey } from '../SidebarFilters/facetFilters';
 import { useOrganizer } from './useOrganizer';
 
 const BUILD_FAILED: MessageType = { category: 'Build', subType: 'Failed' };

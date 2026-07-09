@@ -2,7 +2,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { FluentProvider, webLightTheme } from '@fluentui/react-components';
 import { describe, expect, it, vi } from 'vitest';
 import { SidebarFilters } from './SidebarFilters';
-import type { FilterOption } from './useSidebarFilters';
+import type { FilterOption } from './facetFilters';
 
 // Fluent UI v9 components read theme/context from FluentProvider, so mount through the same wrapper
 // the app uses (see `.claude/rules/testing.md`).

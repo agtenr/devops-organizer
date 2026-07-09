@@ -12,7 +12,7 @@ import {
   filterByTypes,
   typeKey,
   typeLabel,
-} from './useSidebarFilters';
+} from './facetFilters';
 
 const BUILD_FAILED: MessageType = { category: 'Build', subType: 'Failed' };
 const WI_ASSIGNED: MessageType = { category: 'Work item', subType: 'Assigned' };

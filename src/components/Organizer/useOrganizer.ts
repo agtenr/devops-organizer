@@ -8,14 +8,14 @@ import {
   filterByProject,
   filterByTypes,
   type FilterOption,
-} from '../SidebarFilters/useSidebarFilters';
+} from '../SidebarFilters/facetFilters';
 
 /**
  * Organizer container logic: consumes the shared categorized-mail hook and layers the three filters
  * on top — the organization tab (customer), the single-value project facet, and the multi-value
  * type facet — deriving the filtered set the view renders and the sidebar's facet options. The data
  * path itself lives in `useCategorizedMail` (`src/hooks/`), so only the selection concern is owned
- * here; the facet option/filtering logic is the pure helpers in `SidebarFilters/useSidebarFilters`.
+ * here; the facet option/filtering logic is the pure helpers in `SidebarFilters/facetFilters`.
  *
  * Facet model (see `plans/39/plan.md`): each facet's options reflect the *other* active facet but
  * not itself, so selecting one narrows the other's options/counts while staying mutually consistent.

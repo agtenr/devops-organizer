@@ -1,5 +1,5 @@
 import { CounterBadge, ToggleButton, Text, makeStyles, tokens } from '@fluentui/react-components';
-import type { FilterOption } from './useSidebarFilters';
+import type { FilterOption } from './facetFilters';
 
 const useStyles = makeStyles({
   root: {
