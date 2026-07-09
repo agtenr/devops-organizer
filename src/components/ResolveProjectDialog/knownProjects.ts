@@ -11,10 +11,7 @@ import { UNCATEGORIZED, type CategorizedEmail } from '../../models/categorizatio
  * suggestions in the dialog. Excludes the {@link UNCATEGORIZED} fallback and any project that is still
  * an unresolved GUID (those are not names to suggest). Sorted alphabetically (case-insensitive).
  */
-export function deriveKnownProjectNames(
-  emails: CategorizedEmail[],
-  customer: string,
-): string[] {
+export function deriveKnownProjectNames(emails: CategorizedEmail[], customer: string): string[] {
   const names = new Set<string>();
   for (const email of emails) {
     if (email.customer !== customer) {

@@ -35,6 +35,7 @@ export function Organizer() {
     folderName,
     categorized,
     filtered,
+    resolveProjectGuid,
     selectedCustomer,
     selectCustomer,
     projectOptions,
@@ -64,7 +65,14 @@ export function Organizer() {
           />
         </div>
         <div className={styles.view}>
-          <EmailList status={status} error={error} folderName={folderName} emails={filtered} />
+          <EmailList
+            status={status}
+            error={error}
+            folderName={folderName}
+            emails={filtered}
+            allEmails={categorized}
+            resolveProjectGuid={resolveProjectGuid}
+          />
         </div>
       </div>
     </>

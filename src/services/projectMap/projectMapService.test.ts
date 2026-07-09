@@ -6,10 +6,11 @@ import { fetchProjectMap, saveProjectMapping } from './projectMapService';
  * Minimal fake of the Graph request builder chain used by the service:
  * `client.api(path).get()` and `client.api(path).header(...).put(body)`.
  */
-function fakeClient(opts: {
-  get?: () => unknown;
-  put?: (body: unknown) => void;
-}): { client: Client; lastPath: () => string; lastPutBody: () => unknown } {
+function fakeClient(opts: { get?: () => unknown; put?: (body: unknown) => void }): {
+  client: Client;
+  lastPath: () => string;
+  lastPutBody: () => unknown;
+} {
   let path = '';
   let putBody: unknown;
   const builder = {

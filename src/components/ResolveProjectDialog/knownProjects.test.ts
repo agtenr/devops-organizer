@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { UNCATEGORIZED, type CategorizedEmail, type MessageType } from '../../models/categorization';
+import {
+  UNCATEGORIZED,
+  type CategorizedEmail,
+  type MessageType,
+} from '../../models/categorization';
 import { deriveKnownProjectNames } from './knownProjects';
 
 const TYPE: MessageType = { category: 'Work item', subType: 'Assigned' };

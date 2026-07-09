@@ -4,7 +4,14 @@ import { ALL_CUSTOMERS, deriveCustomerTabs } from './useCustomerTabs';
 
 // Only the `customer` axis drives the tab derivation, so the other fields are fillers here.
 function email(customer: string): CategorizedEmail {
-  return { message: {}, customer, project: 'p', type: UNKNOWN_TYPE, needsReview: false };
+  return {
+    message: {},
+    customer,
+    project: 'p',
+    type: UNKNOWN_TYPE,
+    needsReview: false,
+    projectIsUnresolvedGuid: false,
+  };
 }
 
 describe('deriveCustomerTabs', () => {

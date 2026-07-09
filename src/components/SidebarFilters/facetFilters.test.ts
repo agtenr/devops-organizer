@@ -25,6 +25,7 @@ function email(overrides: Partial<CategorizedEmail> = {}): CategorizedEmail {
     project: 'p',
     type: UNKNOWN_TYPE,
     needsReview: false,
+    projectIsUnresolvedGuid: false,
     ...overrides,
   };
 }

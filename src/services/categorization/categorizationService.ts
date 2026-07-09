@@ -242,7 +242,10 @@ export function determineType(bodyText: string, subject: string): MessageType | 
  * for `needsReview`; a miss leaves the GUID verbatim and flags it (`projectIsUnresolvedGuid`). The map
  * is data passed in — the service stays pure/deterministic (no I/O).
  */
-export function categorizeEmail(message: Message, projectMap: ProjectGuidMap = {}): CategorizedEmail {
+export function categorizeEmail(
+  message: Message,
+  projectMap: ProjectGuidMap = {},
+): CategorizedEmail {
   const orgProject = resolveOrgAndProject(message.body?.content);
   const type = determineType(extractBodyText(message.body), message.subject ?? '');
 

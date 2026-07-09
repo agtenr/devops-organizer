@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { FluentProvider, webLightTheme } from '@fluentui/react-components';
 import type { Message } from '@microsoft/microsoft-graph-types';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { CategorizedEmail, MessageType } from '../../models/categorization';
 import { EmailList, type EmailListProps } from './EmailList';
 
@@ -24,6 +24,7 @@ function email(
     project: 'Alpha',
     type: WI_ASSIGNED,
     needsReview: false,
+    projectIsUnresolvedGuid: false,
     ...rest,
   };
 }
@@ -34,6 +35,8 @@ function renderList(overrides: Partial<EmailListProps> = {}) {
     error: '',
     folderName: 'DevOps',
     emails: [email()],
+    allEmails: [],
+    resolveProjectGuid: vi.fn(() => Promise.resolve()),
     ...overrides,
   };
   return render(
@@ -79,7 +82,7 @@ describe('EmailList — rows', () => {
       ],
     });
 
-    for (const header of ['Date', 'Subject', 'Organization', 'Project', 'Type']) {
+    for (const header of ['Date', 'Subject', 'Organization', 'Project', 'Type', 'Actions']) {
       expect(screen.getByRole('columnheader', { name: header })).toBeInTheDocument();
     }
 
@@ -108,6 +111,57 @@ describe('EmailList — rows', () => {
 
     const clean = screen.getByRole('row', { name: /Clean/ });
     expect(within(clean).queryByText(/needs review/i)).not.toBeInTheDocument();
+  });
+});
+
+describe('EmailList — resolve project GUID action', () => {
+  const GUID = '2595f41b-a4ea-4a8e-a89c-1cc0bd9384b4';
+
+  it('offers the action only on unresolved-GUID rows', () => {
+    renderList({
+      emails: [
+        email({
+          message: { id: 'g', subject: 'Guid row' },
+          project: GUID,
+          projectIsUnresolvedGuid: true,
+        }),
+        email({ message: { id: 'n', subject: 'Named row' }, project: 'Alpha' }),
+      ],
+    });
+
+    const guidRow = screen.getByRole('row', { name: /Guid row/ });
+    expect(
+      within(guidRow).getByRole('button', { name: 'Resolve project GUID' }),
+    ).toBeInTheDocument();
+
+    const namedRow = screen.getByRole('row', { name: /Named row/ });
+    expect(
+      within(namedRow).queryByRole('button', { name: 'Resolve project GUID' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('opens the dialog for the row GUID without opening the body panel', () => {
+    renderList({
+      emails: [
+        email({
+          message: { id: 'g', subject: 'Guid row', body: { contentType: 'text', content: 'body' } },
+          customer: 'Azelis',
+          project: GUID,
+          projectIsUnresolvedGuid: true,
+        }),
+      ],
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Resolve project GUID' }));
+
+    const dialog = screen.getByRole('dialog');
+    expect(
+      within(dialog).getByRole('heading', { name: 'Resolve Project GUID' }),
+    ).toBeInTheDocument();
+    // The GUID is shown in the dialog (it also appears in the row's Project cell, so scope the query).
+    expect(within(dialog).getByText(GUID)).toBeInTheDocument();
+    // The body panel (row activation) must not have opened.
+    expect(screen.queryByText('body')).not.toBeInTheDocument();
   });
 });
 
