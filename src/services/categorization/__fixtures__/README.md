@@ -19,8 +19,10 @@ the suite is hermetic and deterministic.
 Story §7's reference table lists friendly project **names** for every row, but Azure DevOps
 work-item and release notifications only carry the project **GUID** in their URLs — the friendly
 name is genuinely absent from those e-mails. Per the domain rules (a name is used directly; a GUID is
-shown when no name is present; names are never inferred/translated) and the merged plan's "no
-GUID → name translation" non-goal, the engine outputs the **GUID** for those messages. So `customer`
-and `type` match the reference table for all 14, while `project` matches for the 8 messages whose URL
-exposes the name (Build/PR) and is the GUID for the 6 that don't (work item + release). The expected
-values asserted in the tests reflect what is actually derivable from each e-mail.
+shown when no name is present; names are never inferred/translated) the engine outputs the **GUID**
+for those messages, and — per AC §2.5/§6 (an untranslatable GUID is flagged rather than guessed) —
+sets `needsReview: true` on them so a human can map the GUID to a name later. So `customer` and
+`type` match the reference table for all 14, while `project` matches for the 8 messages whose URL
+exposes the name (Build/PR, `needsReview: false`) and is the GUID for the 6 that don't (work item +
+release, `needsReview: true`). The expected values asserted in the tests reflect what is actually
+derivable from each e-mail.
