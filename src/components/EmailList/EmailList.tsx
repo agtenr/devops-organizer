@@ -19,7 +19,8 @@ import {
 import type { Message } from '@microsoft/microsoft-graph-types';
 import type { CategorizedEmail } from '../../models/categorization';
 import { typeLabel } from '../SidebarFilters/facetFilters';
-import { formatReceivedDate, resolveBody, useEmailList } from './useEmailList';
+import { formatReceivedDate, resolveBody } from './emailFormatters';
+import { useEmailList } from './useEmailList';
 
 const useStyles = makeStyles({
   // List fills the view; the body drawer docks to the right of it (inline = non-blocking).
@@ -149,7 +150,7 @@ export function EmailList({ status, error, folderName, emails }: EmailListProps)
         {status === 'success' &&
           (emails.length === 0 ? (
             <Text as="p" className={styles.empty}>
-              No e-mails match the current filters.
+              No e-mails to show.
             </Text>
           ) : (
             <Table aria-label="E-mails" size="small" className={styles.table}>

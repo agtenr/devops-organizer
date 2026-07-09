@@ -56,7 +56,7 @@ describe('EmailList — states', () => {
 
   it('shows an empty state when there are no e-mails', () => {
     renderList({ emails: [] });
-    expect(screen.getByText(/No e-mails match the current filters/)).toBeInTheDocument();
+    expect(screen.getByText(/No e-mails to show/)).toBeInTheDocument();
   });
 });
 
@@ -130,6 +130,8 @@ describe('EmailList — body panel', () => {
     fireEvent.click(screen.getByRole('row', { name: /Open me/ }));
     expect(screen.getByText('the body text')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Close' })).toBeInTheDocument();
+    // The selected e-mail's subject is shown in the drawer header (not just the row).
+    expect(screen.getByRole('heading', { name: 'Open me' })).toBeInTheDocument();
   });
 
   it('closes the panel when the close control is clicked', () => {
