@@ -23,9 +23,13 @@ const configuration: Configuration = {
 // Single MSAL instance shared across the app; `initialize()` is awaited in `main.tsx` before use.
 export const msalInstance = new PublicClientApplication(configuration);
 
-// Sign-in requests the least-privilege read-only mail scope (Mail.Read) alongside the implicit
-// OIDC scopes MSAL always includes. Consenting to Mail.Read once at sign-in lets the app acquire
-// mail tokens silently thereafter (see `.claude/rules/authentication.md`).
+// Sign-in requests, alongside the implicit OIDC scopes MSAL always includes:
+// - `Mail.Read` — least-privilege read-only mail access (story 36).
+// - `Files.ReadWrite` — to persist the project GUID→name map in the user's OneDrive app folder
+//   (story 42). `Files.ReadWrite.AppFolder` (narrower) is unsupported for the organizational
+//   accounts this app signs in with, so the broader scope is the least-privilege option that works
+//   here; the data still lives in the dedicated app folder. See `.claude/rules/authentication.md`.
+// Consenting to both once at sign-in lets the app acquire tokens silently thereafter.
 export const loginRequest: RedirectRequest = {
-  scopes: ['Mail.Read'],
+  scopes: ['Mail.Read', 'Files.ReadWrite'],
 };
