@@ -14,17 +14,22 @@ it. Selecting a tab **filters** the displayed e-mail set to that organization; "
 shows everything. This is the first slice of the "Customer tabs across the top… each tab shows an
 item counter" layout invariant in `.claude/rules/frontend-architecture.md`.
 
-Because there is no real list view yet, the story explicitly targets the existing debug surface: the
-tabs filter what `MailDebug` renders (the cards **and** the raw `<pre>`). The real list view that
-replaces `MailDebug` is the successor story (#39); the permanent, reusable pieces built here — the
-`CustomerTabs` component and its pure tab-derivation logic — survive that transition unchanged.
+Because there is no real list view yet, the story targets the existing debug surface: the tabs filter
+what `MailDebug` renders (the cards **and** the raw `<pre>`). Per reviewer decision, the selection
+state and the email data are **owned by a new permanent container** (`Organizer`) that sits between
+the top bar and `MailDebug` — **not** inside the throwaway `MailDebug`, which is demoted to a pure
+presentational visualizer that renders whatever filtered emails it is handed. The real list view that
+replaces `MailDebug` is the successor story (#39); the permanent pieces built here — the `Organizer`
+container, the `CustomerTabs` component, and the pure tab-derivation logic — survive that transition,
+so #39 only swaps the visualizer.
 
 ## Keep it simple
-- **No dedicated permanent container / state store.** The selected-tab state and the fetch+
-  categorize data stay in the existing `useMailDebug` hook; `MailDebug` renders `CustomerTabs` above
-  its columns. This is transitional wiring that dies with `MailDebug` in #39. We do **not** stand up a
-  new `OrganizerView`/context/data-library layer now — that is #39's job and would be speculative here
-  (see open question below).
+- **A container, but no context / data-library.** Per reviewer decision the selected-tab state and
+  the email data live in a **new permanent `Organizer` container** (with a colocated `useOrganizer`
+  hook), **not** in the throwaway `MailDebug`. But we keep that container plain: local React state +
+  the existing categorization service, passed down by props. We do **not** introduce React Context, a
+  data library (TanStack Query), or a global store — that broader state decision is still open
+  (`frontend-architecture.md` "state approach… not decided") and props suffice for this depth.
 - **No project/type sidebar, no real list view.** AC and the frontend rule also call for a left
   sidebar (project/type) and a center list; those are **not** this story. Only the organization tab
   strip and the filtering of the current debug display are in scope.
@@ -44,15 +49,25 @@ presentational** component: it receives the full categorized set plus the curren
 "All" tab, ordering) lives in a **pure exported function `deriveCustomerTabs`** in the hook file, so
 it is unit-testable without React and never sits inline in JSX.
 
-Then extend the existing temporary surface to drive and consume the selection:
-- `useMailDebug` gains a `selectedCustomer` state (default = the "All" sentinel) and exposes it, a
-  setter, and a **filtered** view of the categorized set (`selected === ALL ? all : all.filter(e =>
-  e.customer === selected)`).
-- `MailDebug` renders `<CustomerTabs emails={categorized} selectedCustomer={…} onSelect={…} />`
-  above its two columns, and drives **both** columns from the filtered set — the cards from the
-  filtered emails and the raw `<pre>` from `filtered.map((e) => e.message)`. Because the engine emits
+Introduce a **permanent `Organizer` container** (`src/components/Organizer/`) that owns the data and
+the selection, and demote `MailDebug` to a pure visualizer:
+- **Move the fetch + categorize logic** out of the current `useMailDebug` into a new colocated
+  `useOrganizer` hook (the mail-service + `categorizeEmails` call is the real data path, not debug
+  scaffolding, so it belongs on the permanent side). `useOrganizer` also owns `selectedCustomer`
+  state (default = the `ALL_CUSTOMERS` sentinel) and derives the **filtered** set
+  (`selected === ALL_CUSTOMERS ? all : all.filter((e) => e.customer === selected)`). It exposes
+  `{ status, error, folderName, categorized, filtered, selectedCustomer, setSelectedCustomer }`.
+- **`Organizer.tsx`** renders `<CustomerTabs emails={categorized} selectedCustomer={…} onSelect={setSelectedCustomer} />`
+  followed by `<MailDebug status={…} error={…} folderName={…} emails={filtered} />`. `CustomerTabs`
+  gets the **full** `categorized` set (counts must reflect totals, not the current filter); `MailDebug`
+  gets the **filtered** set.
+- **`MailDebug` becomes presentational** — it drops its `useMailDebug` hook and all fetching/state,
+  taking `{ status, error, folderName, emails: CategorizedEmail[] }` as props. It renders the cards
+  from `emails` and the raw `<pre>` from `emails.map((e) => e.message)`. Because the engine emits
   exactly one `CategorizedEmail` per message and never drops one, the "All" view reproduces the full
-  raw set unchanged.
+  raw set unchanged; per-org views are subsets. `useMailDebug.ts` is deleted.
+- **`App.tsx`** renders `<Organizer />` in place of `<MailDebug />` (inside the existing
+  `MsalAuthenticationTemplate`, so the account is available for the fetch).
 
 Counters use Fluent's `CounterBadge` (with `showZero`) inside each `Tab`; the "All" tab's count is
 the total.
@@ -76,48 +91,60 @@ export interface CustomerTabsProps {
   selectedCustomer: string; // ALL_CUSTOMERS or a customer value; must match a rendered tab's value
   onSelect: (value: string) => void; // receives the selected tab's `value` (ALL_CUSTOMERS or a customer)
 }
+
+// MailDebug is now presentational — it receives the already-filtered set and renders it.
+export interface MailDebugProps {
+  status: 'loading' | 'success' | 'error';
+  error: string;
+  folderName: string;
+  emails: CategorizedEmail[]; // the FILTERED set; the raw <pre> is emails.map((e) => e.message)
+}
 ```
 
-`deriveCustomerTabs(emails: CategorizedEmail[]): CustomerTab[]` → always returns the "All" tab first
-(count = `emails.length`), then one tab per **distinct** `customer` sorted alphabetically, count =
-occurrences. `onSelect`'s emitted `value` and `useMailDebug`'s `selectedCustomer`/filter comparison
-must use the **same** `customer` strings and the same `ALL_CUSTOMERS` sentinel.
+`deriveCustomerTabs(emails: CategorizedEmail[]): CustomerTab[]` → ordering fixed by reviewer:
+**"All" first** (count = `emails.length`), then one tab per **distinct** organization sorted
+**alphabetically** (case-insensitive), and **`Uncategorized` pinned last** if present. Use the
+exported `UNCATEGORIZED` constant from `src/models/categorization.ts` for that value — do not
+hardcode the string. `onSelect`'s emitted `value` and `useOrganizer`'s `selectedCustomer`/filter
+comparison must use the **same** `customer` strings and the same `ALL_CUSTOMERS` sentinel.
 
 ## Task breakdown
 1. **Add the `CustomerTabs` component + `useCustomerTabs` hook + `deriveCustomerTabs`.** New folder
    `src/components/CustomerTabs/` with `CustomerTabs.tsx` (renders `TabList`/`Tab` + `CounterBadge`,
    controlled via `selectedValue`/`onTabSelect`) and `useCustomerTabs.ts` (exports the pure
-   `deriveCustomerTabs`, the `ALL_CUSTOMERS` sentinel, and a `useCustomerTabs(emails)` hook that
-   `useMemo`s the derivation). *Rules: `frontend-architecture.md` (own folder, logic in a hook not
-   JSX, Fluent components/tokens), `categorization-domain.md` (Customer = ADO organization; consume
-   tags, never re-derive).*
-2. **Wire selection + filtering into the debug surface.** In `useMailDebug` add `selectedCustomer`
-   state (default `ALL_CUSTOMERS`), a setter, and a memoised filtered set; in `MailDebug.tsx` render
-   `<CustomerTabs>` above the columns and feed both the cards and the `<pre>` from the filtered set
-   (`filtered.map((e) => e.message)` for the raw JSON). *Rules: `frontend-architecture.md` (logic in
-   the hook, not inline; UI layout invariant — tabs across the top under the fixed bar).*
-3. **Unit + component tests.** `useCustomerTabs.test.ts` covering `deriveCustomerTabs`; a
+   `deriveCustomerTabs` with the All-first / alphabetical / `Uncategorized`-last ordering, the
+   `ALL_CUSTOMERS` sentinel, and a `useCustomerTabs(emails)` hook that `useMemo`s the derivation;
+   reuse the `UNCATEGORIZED` constant from `src/models/categorization.ts`). *Rules:
+   `frontend-architecture.md` (own folder, logic in a hook not JSX, Fluent components/tokens),
+   `categorization-domain.md` (Customer = ADO organization; consume tags, never re-derive).*
+2. **Add the `Organizer` container + `useOrganizer` hook, moving the data path off `MailDebug`.** New
+   folder `src/components/Organizer/` with `useOrganizer.ts` (relocate the fetch + `categorizeEmails`
+   logic currently in `useMailDebug`; add `selectedCustomer` state defaulting to `ALL_CUSTOMERS`, a
+   setter, and a memoised `filtered` set) and `Organizer.tsx` (renders `CustomerTabs` fed the full
+   `categorized` set, then `MailDebug` fed the `filtered` set). *Rules: `frontend-architecture.md`
+   (own folder, logic in the hook not JSX; UI layout invariant — tabs across the top under the fixed
+   bar; single fetch on load, bounded in-memory set).*
+3. **Demote `MailDebug` to presentational and wire the container into `App`.** Change `MailDebug.tsx`
+   to take `MailDebugProps` and render cards from `emails` + the `<pre>` from `emails.map((e) =>
+   e.message)`; delete `useMailDebug.ts`. In `App.tsx` render `<Organizer />` in place of
+   `<MailDebug />`. *Rules: `frontend-architecture.md` (logic/rendering split; component structure).*
+4. **Unit + component tests.** `useCustomerTabs.test.ts` covering `deriveCustomerTabs`; a
    `CustomerTabs.test.tsx` rendering through the `FluentProvider`/`webLightTheme` wrapper. *Rules:
    `testing.md` (Vitest; test pure logic directly; render component tests through the provider
    wrapper).*
-4. **Verify done.** `npm run build`, `npm run lint`, `npm run format:check`, `npm run test` all
+5. **Verify done.** `npm run build`, `npm run lint`, `npm run format:check`, `npm run test` all
    clean. *Rules: `frontend-architecture.md` ("what done looks like"), `testing.md`.*
 
-## Assumptions & open questions
-- **Wiring lives in the temporary `MailDebug` (no permanent container now).** I put the selected-tab
-  state in `useMailDebug` and render `CustomerTabs` inside `MailDebug`, rather than introducing a
-  dedicated permanent container/context in this story. Reviewer may prefer standing up that container
-  now so #39 inherits it — is the transitional wiring acceptable?
-- **`Uncategorized` gets its own tab, ordered alphabetically like any org.** Distinct customers
-  (including the `Uncategorized` fallback) are sorted alphabetically, so `Uncategorized` lands near
-  the end by letter. Alternative preferences: pin `Uncategorized` last explicitly, or order tabs by
-  descending count instead of alphabetically.
-- **"All" sentinel is the literal `'__all__'`.** Chosen to avoid colliding with a real ADO org
-  literally named "All". Alternative: use the display string `'All'` directly (simpler, tiny
-  collision risk).
-- **Counter rendered with Fluent `CounterBadge` (`showZero`).** So an "All" tab can show `0` on an
-  empty inbox. Reviewer may prefer plain `Org (12)` text or a different badge style — this is a
-  design detail the story defers to implementation.
+Settled by review (folded into the plan, no longer open): selection state lives in a **permanent
+`Organizer` container**, not in `MailDebug` (thread on line ~107); tab order is **All → alphabetical
+→ `Uncategorized` last** (thread on line ~111); the "All" sentinel is `'__all__'`; counters use
+`CounterBadge`.
+
+- **The data path (fetch + categorize) is colocated in `useOrganizer`, not a shared `src/hooks/`
+  hook.** Only the `Organizer` container consumes it today, so I kept it colocated rather than
+  creating the `src/hooks/` shared-hook directory `frontend-architecture.md` mentions. If you'd
+  rather extract a reusable `useCategorizedMail` under `src/hooks/` now (so #39's real list view can
+  import it independently of `Organizer`), say so and I'll split it.
 
 ## Considerations
 - **Bounded set, in-memory (`frontend-architecture.md`).** Derivation and filtering run over the
@@ -138,9 +165,11 @@ this story ships tests.
   `CustomerTabs` mounted through `FluentProvider` + `webLightTheme`.
 - **Must-cover:**
   - `deriveCustomerTabs([])` → a single "All" tab, `count: 0` (no org tabs) — never throws.
-  - Mixed set (e.g. two orgs, one repeated, plus an `Uncategorized`) → "All" first with
-    `count = total`; one tab per distinct org in alphabetical order with correct per-org counts;
-    `Uncategorized` present as its own tab.
+  - Mixed set (e.g. orgs `Contoso` + `Adatum`, one repeated, plus an `Uncategorized`) → order is
+    exactly `[All, Adatum, Contoso, Uncategorized]` with `All.count = total` and correct per-org
+    counts; i.e. **All first, orgs alphabetical, `Uncategorized` pinned last** even though `U` would
+    already sort late (a set with an org named e.g. `Zzz` must still place `Uncategorized` after it).
+  - Set with **no** uncategorized emails → no `Uncategorized` tab appears.
   - `CustomerTabs` renders one tab per derived entry with its visible counter, reflects
     `selectedCustomer` as the active tab, and calls `onSelect` with the tab's `value` when a different
     tab is clicked.
@@ -150,6 +179,10 @@ this story ships tests.
 - [ ] Each tab shows a counter of e-mails under that organization; "All" shows the total.
 - [ ] Selecting a tab filters the displayed set (cards **and** the raw `<pre>`) to that organization;
       "All" shows every e-mail.
+- [ ] Tab order is **All → organizations alphabetical → `Uncategorized` last**.
+- [ ] Selection state and the email data live in the permanent `Organizer` container (colocated
+      `useOrganizer`), **not** in `MailDebug`; `MailDebug` is presentational and `useMailDebug.ts`
+      is removed (`frontend-architecture.md` — logic/rendering split).
 - [ ] `CustomerTabs` is its own folder with a colocated `useCustomerTabs` hook; tab-derivation logic
       lives in the pure `deriveCustomerTabs`, not inline in JSX (`frontend-architecture.md`).
 - [ ] Tabs consume the engine's `customer` tags verbatim; no re-categorization and no engine changes
@@ -166,6 +199,11 @@ this story ships tests.
   `useCustomerTabs`).
 - `src/components/CustomerTabs/useCustomerTabs.test.ts` — **new** (pure derivation tests).
 - `src/components/CustomerTabs/CustomerTabs.test.tsx` — **new** (render/selection test via provider).
-- `src/components/MailDebug/useMailDebug.ts` — **edit** (selection state + filtered set).
-- `src/components/MailDebug/MailDebug.tsx` — **edit** (render `CustomerTabs`; drive columns from the
-  filtered set).
+- `src/components/Organizer/Organizer.tsx` — **new** (permanent container: renders `CustomerTabs` +
+  `MailDebug`).
+- `src/components/Organizer/useOrganizer.ts` — **new** (fetch + categorize relocated from
+  `useMailDebug`; `selectedCustomer` state + `filtered` set).
+- `src/components/MailDebug/MailDebug.tsx` — **edit** (now presentational — takes `MailDebugProps`,
+  renders cards + `<pre>` from the passed `emails`).
+- `src/components/MailDebug/useMailDebug.ts` — **deleted** (logic moved to `useOrganizer`).
+- `src/App/App.tsx` — **edit** (render `<Organizer />` in place of `<MailDebug />`).
