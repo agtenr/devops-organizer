@@ -171,30 +171,31 @@ clearing `selectCustomer` wrapper (still passed to `CustomerTabs` as `onSelect`)
    clean. *Rules: `frontend-architecture.md` ("what done looks like"), `testing.md`.*
 
 ## Assumptions & open questions
-- **Facet counts are cross-faceted, not org-only.** Each project option's count reflects the set
-  after applying the selected **types** (and each type option's count reflects the selected
-  **project**), so selecting one facet updates the other's counts. I chose this over showing
-  org-only counts because AC says options are "already filtered based on the selected
-  organizations and/or types" and "the count of available e-mails" reads as availability under the
-  current cross-selection. Reviewer may prefer org-only counts (options hidden, but counts fixed to
-  the tab total).
-- **A selected type that becomes unavailable after a project is chosen stays selected (no
-  auto-prune).** Selecting types then a project can leave a selected type absent from the (now
-  project-narrowed) type options, so its toggle isn't rendered until the project is deselected. I
-  keep the selection intact (the composed filter stays correct and non-empty) rather than silently
-  mutating the user's selection. Reviewer may prefer auto-pruning selected types to the available
-  set.
-- **List view stays `MailDebug`; the real center list view is a separate later story.** Story 39 is
-  scoped to the sidebar only, filtering the existing debug surface — despite the forward-looking
-  `Organizer.tsx` comment that "#39 swaps that for the real list view". Reviewer may want the list
-  view built here instead.
+All five open questions below were **settled by plan review (PR #18) and folded into the plan** — the
+reviewer confirmed each recommendation. They remain documented here (permanent living documentation)
+as the ratified decisions, no longer open:
+
+- **Facet counts are cross-faceted, not org-only** *(ratified)*. Each project option's count reflects
+  the set after applying the selected **types** (and each type option's count reflects the selected
+  **project**), so selecting one facet updates the other's counts — chosen over org-only counts
+  because AC says options are "already filtered based on the selected organizations and/or types"
+  and "the count of available e-mails" reads as availability under the current cross-selection.
+- **A selected type that becomes unavailable after a project is chosen stays selected — no
+  auto-prune** *(ratified)*. Selecting types then a project can leave a selected type absent from the
+  (now project-narrowed) type options, so its toggle isn't rendered until the project is deselected.
+  The selection is kept intact (the composed filter stays correct and non-empty) rather than silently
+  mutating the user's selection.
+- **List view stays `MailDebug`; the real center list view is a separate later story** *(ratified)*.
+  Story 39 is scoped to the sidebar only, filtering the existing debug surface — the forward-looking
+  `Organizer.tsx` comment that "#39 swaps that for the real list view" does not bind this story's
+  scope.
 - **`ToggleButton` is used for both facets (including single-value project) rather than
-  `RadioGroup` + `Checkbox`.** This is because a native radio can't be deselected by re-clicking
-  the selected item, which AC requires. Reviewer may prefer radios/checkboxes with custom deselect
-  handling for stronger semantics.
+  `RadioGroup` + `Checkbox`** *(ratified)*. A native radio can't be deselected by re-clicking the
+  selected item, which AC requires; the toggle-with-`aria-pressed` approach handles click-to-deselect
+  uniformly for both facets.
 - **Type options are ordered alphabetically by `typeLabel` (`localeCompare`), not by the taxonomy
-  order** of the `MessageType` union (Work item → Pull request → Build → Release → Other). Alpha is
-  simplest and deterministic; reviewer may prefer the taxonomy order for a more intuitive grouping.
+  order** of the `MessageType` union *(ratified)*. Alphabetical is simplest and deterministic; the
+  taxonomy order (Work item → Pull request → Build → Release → Other) was explicitly declined.
 
 ## Considerations
 - **Bounded, in-memory set.** Derivation, counting, and the three-way composition run over the
