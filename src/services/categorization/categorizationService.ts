@@ -169,6 +169,12 @@ function classify(text: string): MessageType | null {
   if (text.includes('build succeeded')) {
     return { category: 'Build', subType: 'Succeeded' };
   }
+  // Cancellation. Anchored on `build` (optionally `#<number> `) immediately before the verb so a
+  // stray "cancel" elsewhere cannot mis-fire; `cancell?ed` matches both US "canceled" and UK
+  // "cancelled" (the body reads `build #91801 canceled`, the subject `[build canceled]`).
+  if (/build (?:#\d+ )?cancell?ed/.test(text)) {
+    return { category: 'Build', subType: 'Cancelled' };
+  }
 
   // 3. Release / deployment.
   if (includesAny(text, 'approval is required for stage', 'approval pending')) {
@@ -181,8 +187,10 @@ function classify(text: string): MessageType | null {
     return { category: 'Release', subType: 'Deployment failed' };
   }
 
-  // 4. Pull request (only when the e-mail is about a pull request).
-  if (includesAny(text, 'pull request', 'added as a reviewer')) {
+  // 4. Pull request (only when the e-mail is about a pull request). "pushed new changes" is also a
+  // gate trigger: that notification's visible text carries no literal "pull request" (its CTA reads
+  // "View changes"), so it would otherwise never open the gate.
+  if (includesAny(text, 'pull request', 'added as a reviewer', 'pushed new changes')) {
     if (text.includes('completed the pull request')) {
       return { category: 'Pull request', subType: 'Completed' };
     }
@@ -192,7 +200,10 @@ function classify(text: string): MessageType | null {
     if (text.includes('added as a reviewer')) {
       return { category: 'Pull request', subType: 'Review requested' };
     }
-    if (text.includes('created the pull request')) {
+    if (text.includes('published the pull request')) {
+      return { category: 'Pull request', subType: 'Published' };
+    }
+    if (includesAny(text, 'created the pull request', 'created a new pull request')) {
       return { category: 'Pull request', subType: 'Created' };
     }
     if (includesAny(text, 'updated the pull request', 'pushed')) {

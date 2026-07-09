@@ -18,9 +18,16 @@ export type MessageType =
     }
   | {
       category: 'Pull request';
-      subType: 'Created' | 'Updated' | 'Review requested' | 'Commented' | 'Completed' | 'Abandoned';
+      subType:
+        | 'Created'
+        | 'Published'
+        | 'Updated'
+        | 'Review requested'
+        | 'Commented'
+        | 'Completed'
+        | 'Abandoned';
     }
-  | { category: 'Build'; subType: 'Succeeded' | 'Failed' | 'Partially succeeded' }
+  | { category: 'Build'; subType: 'Succeeded' | 'Failed' | 'Partially succeeded' | 'Cancelled' }
   | {
       category: 'Release';
       subType: 'Approval pending' | 'Deployment succeeded' | 'Deployment failed';
