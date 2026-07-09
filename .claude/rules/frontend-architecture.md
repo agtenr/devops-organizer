@@ -13,6 +13,17 @@
 - Each component lives in **its own folder**.
 - **Logic and rendering are split**: the `.tsx` component renders; its logic lives in a
   colocated **custom hook** (e.g. `useCustomerTabs.ts` next to `CustomerTabs.tsx`).
+  - **`use*` is for hooks only.** A colocated file named `use*` holds a real **custom hook**
+    (stateful / React logic — `useState`, `useEffect`, `useMemo`, etc.), e.g.
+    `useCustomerTabs.ts`, `useEmailList.ts`. A `use*` filename that exports **no hook** is wrong.
+  - **Pure, React-free helpers get their own colocated file, not the hook.** Derivation /
+    formatting logic with no React dependency belongs in its **own file named for its content**
+    (not `use`-prefixed), colocated in the component's folder — e.g. `facetFilters.ts` next to
+    `SidebarFilters.tsx`, `emailFormatters.ts` next to `EmailList.tsx`. Do **not** stuff such
+    helpers into the `use*` file. (Human rulings, stories 39 and 40.)
+  - **Placement:** keep these helpers colocated in the component's own folder — not a generic
+    `src/utils/`, and not `src/services/` (reserved for the categorization business logic, see
+    `categorization-domain.md`).
 - The mapping/categorization business logic is **centralized in a service** (see
   `categorization-domain.md`) — components never re-implement it.
 - **Concrete tree (settled in story 29 scaffold — grow it as features land):**
@@ -37,6 +48,16 @@
 - TODO (undecided): state approach beyond local React state (React Context vs. a data
   library such as TanStack Query). Not decided — do not assume one.
 
+### State & data placement
+- **State/data that outlives a transitional component must live in a permanent container.**
+  Selection state, the fetch/categorize data path, and anything with a lifetime longer than a
+  throwaway visualizer must **not** be colocated inside a temporary/scaffolding component that
+  will later be deleted — put it in a component or hook that will survive. (Human corrections,
+  story 38.)
+- **Hoist reusable data hooks up front.** A data hook with a foreseeable future consumer belongs
+  in the shared `src/hooks/` location from the start, not colocated and moved later — if you know
+  data needs to be reused, hoist it as soon as reuse is foreseeable. (Human corrections, story 38.)
+
 ## UI layout invariants
 - Top navigation bar is **fixed to the top** of the page (does not scroll with the content). It
   shows the **app title centered**, and the logged-in user's **display name** plus a **log-out**
@@ -45,6 +66,10 @@
   counter**.
 - **Left sidebar** filters by **project and/or type**; each entry shows an **item counter**.
 - **Center**: a simple **list view** of the (filtered) emails.
+- **Entry ordering (customer tabs and sidebar project/type facets).** Any fixed/"All" entry comes
+  **first**; real values are ordered **alphabetically (case-insensitive)**; the
+  uncategorized/fallback bucket is pinned **last** regardless of its letter. (Human ruling on tab
+  order, story 38 — applies to both the tabs and the facet lists.)
 
 ## Conventions
 - **ESLint + Prettier**: ESLint (typescript-eslint + react-hooks rules) for correctness,

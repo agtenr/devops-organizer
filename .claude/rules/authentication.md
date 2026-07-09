@@ -26,8 +26,12 @@
 
 ## Invariants every change must uphold
 - Never call Graph without a valid token acquired through MSAL.
-- Request **least privilege** — read-only mail access (**`Mail.Read`**). Do not add write
-  or broader scopes without an explicit reason.
+- Request **least privilege, evaluated per stage** — request only the scopes the **current
+  slice actually needs**, not a fixed always-on set. Sign-in **alone** needs **no Graph scope**
+  (the display name comes from the ID-token claim); the read-only mail scope (**`Mail.Read`**) is
+  added only when the app **actually reads mail**. Never broaden beyond read-only mail access, and
+  do not add write or broader scopes without an explicit reason. (See **Scope staging** below for
+  how this played out across stories 30 and 36.)
 - Never hardcode the client ID / tenant ID / folder name in source — always via the
   `VITE_*` vars.
 
