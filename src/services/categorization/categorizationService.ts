@@ -238,12 +238,16 @@ export function categorizeEmail(message: Message): CategorizedEmail {
   const orgProject = resolveOrgAndProject(message.body?.content);
   const type = determineType(extractBodyText(message.body), message.subject ?? '');
 
+  // The project resolved to a bare GUID (the URL carried no name). Per AC §2.5/§6 an untranslatable
+  // GUID is surfaced verbatim but flagged for review, so a human can map it to a friendly name.
+  const projectIsUntranslatableGuid = orgProject !== undefined && GUID_RE.test(orgProject.project);
+
   return {
     message,
     customer: orgProject?.customer ?? UNCATEGORIZED,
     project: orgProject?.project ?? UNCATEGORIZED,
     type: type ?? UNKNOWN_TYPE,
-    needsReview: orgProject === undefined || type === null,
+    needsReview: orgProject === undefined || type === null || projectIsUntranslatableGuid,
   };
 }
 

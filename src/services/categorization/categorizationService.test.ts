@@ -126,13 +126,17 @@ const DEMO_CASES = [
   },
 ] as const;
 
+const isGuidProject = (project: string): boolean =>
+  project === AZELIS_GUID || project === COLRUYT_GUID;
+
 describe('categorizeEmail — demo corpus (story 37 §7 reference examples)', () => {
   it.each(DEMO_CASES)('$file → $customer / $project / $category · $subType', (c) => {
     const result = categorizeEmail(loadFixture(c.file));
     expect(result.customer).toBe(c.customer);
     expect(result.project).toBe(c.project);
     expect(result.type).toEqual({ category: c.category, subType: c.subType });
-    expect(result.needsReview).toBe(false);
+    // Projects that resolve only to a GUID are flagged for review (AC §2.5/§6); named projects are not.
+    expect(result.needsReview).toBe(isGuidProject(c.project));
   });
 
   it('covers every type category across the corpus', () => {
@@ -223,6 +227,28 @@ describe('categorizeEmail — fallback & sender-independence', () => {
     expect(result.project).toBe(UNCATEGORIZED);
     expect(result.type).toEqual({ category: 'Other', subType: 'Unknown' });
     expect(result.needsReview).toBe(true);
+  });
+
+  it('flags a project that resolves only to a GUID for review (AC §2.5/§6)', () => {
+    const result = categorizeEmail(
+      message(
+        'Demo Reviewer was assigned to Bug 9 ' +
+          'https://dev.azure.com/Contoso/2595f41b-a4ea-4a8e-a89c-1cc0bd9384b4/_workitems/edit/9',
+      ),
+    );
+    expect(result.project).toBe('2595f41b-a4ea-4a8e-a89c-1cc0bd9384b4');
+    expect(result.type).toEqual({ category: 'Work item', subType: 'Assigned' });
+    expect(result.needsReview).toBe(true);
+  });
+
+  it('does not flag a project that resolves to a friendly name', () => {
+    const result = categorizeEmail(
+      message(
+        'Demo User completed the pull request https://dev.azure.com/Contoso/WebApp/_git/repo/pullrequest/5',
+      ),
+    );
+    expect(result.project).toBe('WebApp');
+    expect(result.needsReview).toBe(false);
   });
 
   it('never throws and applies the fallback when the body is missing entirely', () => {

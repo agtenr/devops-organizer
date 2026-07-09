@@ -47,6 +47,9 @@ export interface CategorizedEmail {
   project: string;
   /** The taxonomy triple; {@link UNKNOWN_TYPE} when no rule matched. */
   type: MessageType;
-  /** True when a body signal was missing (no ADO URL) or no type rule matched. */
+  /**
+   * True when the e-mail needs a human's attention: a body signal was missing (no ADO URL), no type
+   * rule matched, or the project resolved only to an untranslatable GUID (AC §2.5/§6).
+   */
   needsReview: boolean;
 }
