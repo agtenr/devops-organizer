@@ -13,6 +13,7 @@ function email(id: string, message: Partial<Message> = {}): CategorizedEmail {
     project: 'Alpha',
     type: WI_ASSIGNED,
     needsReview: false,
+    projectIsUnresolvedGuid: false,
   };
 }
 
@@ -49,6 +50,18 @@ describe('useEmailList', () => {
 
     expect(result.current.isPanelOpen).toBe(false);
     expect(result.current.selectedEmail?.message.id).toBe('a');
+  });
+
+  it('opens and closes the resolve-project-GUID target', () => {
+    const { result } = renderHook(() => useEmailList([email('a')]));
+
+    expect(result.current.resolveTarget).toBeNull();
+
+    act(() => result.current.openResolve('the-guid', 'Azelis'));
+    expect(result.current.resolveTarget).toEqual({ guid: 'the-guid', customer: 'Azelis' });
+
+    act(() => result.current.closeResolve());
+    expect(result.current.resolveTarget).toBeNull();
   });
 
   it('keeps showing the selected e-mail after it leaves the filtered set (ratified)', () => {

@@ -9,6 +9,12 @@ import type { CategorizedEmail } from '../../models/categorization';
  * (`.claude/rules/categorization-domain.md`).
  */
 
+/** The GUID + organization of the row whose "Resolve project GUID" dialog is open. */
+export interface ResolveTarget {
+  guid: string;
+  customer: string;
+}
+
 /** The body-panel selection state exposed to `EmailList`. */
 export interface UseEmailListResult {
   /** The e-mail whose body the panel shows, or `null` when nothing has been opened yet. */
@@ -19,6 +25,12 @@ export interface UseEmailListResult {
   openEmail: (id: string) => void;
   /** Close the panel (keeps the last selection so its content persists during the close). */
   closePanel: () => void;
+  /** The row targeted by the Resolve Project GUID dialog, or `null` when it is closed. */
+  resolveTarget: ResolveTarget | null;
+  /** Open the resolve dialog for an unresolved-GUID row. */
+  openResolve: (guid: string, customer: string) => void;
+  /** Close the resolve dialog. */
+  closeResolve: () => void;
 }
 
 /**
@@ -29,6 +41,7 @@ export interface UseEmailListResult {
 export function useEmailList(emails: CategorizedEmail[]): UseEmailListResult {
   const [selectedEmail, setSelectedEmail] = useState<CategorizedEmail | null>(null);
   const [isPanelOpen, setIsPanelOpen] = useState(false);
+  const [resolveTarget, setResolveTarget] = useState<ResolveTarget | null>(null);
 
   const openEmail = useCallback(
     (id: string) => {
@@ -46,5 +59,21 @@ export function useEmailList(emails: CategorizedEmail[]): UseEmailListResult {
     setIsPanelOpen(false);
   }, []);
 
-  return { selectedEmail, isPanelOpen, openEmail, closePanel };
+  const openResolve = useCallback((guid: string, customer: string) => {
+    setResolveTarget({ guid, customer });
+  }, []);
+
+  const closeResolve = useCallback(() => {
+    setResolveTarget(null);
+  }, []);
+
+  return {
+    selectedEmail,
+    isPanelOpen,
+    openEmail,
+    closePanel,
+    resolveTarget,
+    openResolve,
+    closeResolve,
+  };
 }

@@ -9,7 +9,14 @@ const WI_ASSIGNED: MessageType = { category: 'Work item', subType: 'Assigned' };
 const PR_CREATED: MessageType = { category: 'Pull request', subType: 'Created' };
 
 function email(customer: string, project: string, type: MessageType): CategorizedEmail {
-  return { message: {}, customer, project, type, needsReview: false };
+  return {
+    message: {},
+    customer,
+    project,
+    type,
+    needsReview: false,
+    projectIsUnresolvedGuid: false,
+  };
 }
 
 // Within Contoso: Alpha has {Build·Failed, WI·Assigned}; Beta has {Build·Failed}. Adatum is separate.

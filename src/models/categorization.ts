@@ -37,6 +37,14 @@ export const UNCATEGORIZED = 'Uncategorized';
 /** The type fallback used when no rule matches (paired with `needsReview: true`). */
 export const UNKNOWN_TYPE: MessageType = { category: 'Other', subType: 'Unknown' };
 
+/**
+ * Persistent GUID→friendly-name mapping (story 42). Keys are **lowercased** ADO project GUIDs, values
+ * the user-entered friendly project names. Loaded from the signed-in user's OneDrive app folder and
+ * passed into the categorization engine as data (the engine stays pure — no I/O). An empty map means
+ * no GUID is resolved (identity).
+ */
+export type ProjectGuidMap = Record<string, string>;
+
 /** A raw Graph message paired with its derived `(Customer, Project, Type)` triple. */
 export interface CategorizedEmail {
   /** The raw source message, carried through unchanged for the UI (subject, received date, …). */
@@ -52,4 +60,11 @@ export interface CategorizedEmail {
    * rule matched, or the project resolved only to an untranslatable GUID (AC §2.5/§6).
    */
   needsReview: boolean;
+  /**
+   * True iff `project` is a bare ADO project GUID with **no** entry in the active {@link ProjectGuidMap}
+   * (story 42). The single signal the UI uses to offer the "Resolve project GUID" action, so components
+   * never re-derive GUID detection themselves (see `.claude/rules/categorization-domain.md` — tags are
+   * consumed verbatim). Becomes `false` once a mapping resolves the GUID to a friendly name.
+   */
+  projectIsUnresolvedGuid: boolean;
 }

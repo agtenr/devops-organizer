@@ -285,6 +285,65 @@ describe('categorizeEmail — fallback & sender-independence', () => {
   });
 });
 
+describe('categorizeEmail — project GUID mapping (story 42)', () => {
+  const guidMessage = () =>
+    message(
+      'Demo Reviewer was assigned to Bug 9 ' +
+        `https://dev.azure.com/Azelis/${AZELIS_GUID}/_workitems/edit/9`,
+    );
+
+  it('resolves a mapped GUID to its friendly name and clears the GUID review flag', () => {
+    const result = categorizeEmail(guidMessage(), { [AZELIS_GUID]: 'AI Sales Agents' });
+    expect(result.project).toBe('AI Sales Agents');
+    expect(result.projectIsUnresolvedGuid).toBe(false);
+    expect(result.needsReview).toBe(false);
+  });
+
+  it('leaves an unmapped GUID verbatim and flags it unresolved', () => {
+    const result = categorizeEmail(guidMessage(), { [COLRUYT_GUID]: 'SC ComCol' });
+    expect(result.project).toBe(AZELIS_GUID);
+    expect(result.projectIsUnresolvedGuid).toBe(true);
+    expect(result.needsReview).toBe(true);
+  });
+
+  it('matches the map key case-insensitively', () => {
+    const upper = message(
+      'Demo Reviewer was assigned to Bug 9 ' +
+        `https://dev.azure.com/Azelis/${AZELIS_GUID.toUpperCase()}/_workitems/edit/9`,
+    );
+    const result = categorizeEmail(upper, { [AZELIS_GUID]: 'AI Sales Agents' });
+    expect(result.project).toBe('AI Sales Agents');
+    expect(result.projectIsUnresolvedGuid).toBe(false);
+  });
+
+  it('is identity with an empty/omitted map — the GUID stays unresolved', () => {
+    expect(categorizeEmail(guidMessage()).projectIsUnresolvedGuid).toBe(true);
+    expect(categorizeEmail(guidMessage(), {}).projectIsUnresolvedGuid).toBe(true);
+  });
+
+  it('never marks a friendly-name project as an unresolved GUID', () => {
+    const named = message(
+      'Demo User completed the pull request https://dev.azure.com/Contoso/WebApp/_git/repo/pullrequest/5',
+    );
+    const result = categorizeEmail(named, { [AZELIS_GUID]: 'AI Sales Agents' });
+    expect(result.project).toBe('WebApp');
+    expect(result.projectIsUnresolvedGuid).toBe(false);
+  });
+
+  it('does not resurrect a no-URL / Uncategorized row via the map', () => {
+    const result = categorizeEmail(message('A newsletter with no Azure DevOps link.'), {
+      [AZELIS_GUID]: 'AI Sales Agents',
+    });
+    expect(result.project).toBe(UNCATEGORIZED);
+    expect(result.projectIsUnresolvedGuid).toBe(false);
+  });
+
+  it('threads the map through categorizeEmails for the whole set', () => {
+    const [result] = categorizeEmails([guidMessage()], { [AZELIS_GUID]: 'AI Sales Agents' });
+    expect(result.project).toBe('AI Sales Agents');
+  });
+});
+
 describe('determineType — Other sub-types', () => {
   it('classifies an organization-administration notification as Other · Admin', () => {
     const result = categorizeEmail(

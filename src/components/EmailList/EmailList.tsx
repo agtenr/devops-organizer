@@ -19,6 +19,8 @@ import {
 import type { Message } from '@microsoft/microsoft-graph-types';
 import type { CategorizedEmail } from '../../models/categorization';
 import { typeLabel } from '../SidebarFilters/facetFilters';
+import { ResolveProjectDialog } from '../ResolveProjectDialog/ResolveProjectDialog';
+import { deriveKnownProjectNames } from '../ResolveProjectDialog/knownProjects';
 import { formatReceivedDate, resolveBody } from './emailFormatters';
 import { useEmailList } from './useEmailList';
 
@@ -48,13 +50,14 @@ const useStyles = makeStyles({
   // overflowX) instead of collapsing Subject to nothing when the drawer narrows the view.
   table: {
     width: '100%',
-    minWidth: '760px',
+    minWidth: '880px',
     tableLayout: 'fixed',
   },
-  colDate: { width: '15%' },
-  colOrg: { width: '15%' },
-  colProject: { width: '14%' },
-  colType: { width: '18%' },
+  colDate: { width: '14%' },
+  colOrg: { width: '14%' },
+  colProject: { width: '13%' },
+  colType: { width: '16%' },
+  colActions: { width: '14%' },
   // Non-subject cells stay single-line and ellipsize rather than wrapping to a taller row.
   cell: {
     whiteSpace: 'nowrap',
@@ -124,6 +127,10 @@ export interface EmailListProps {
   folderName: string;
   /** The already-filtered categorized set to render (org ∩ project ∩ types), from `useOrganizer`. */
   emails: CategorizedEmail[];
+  /** The full categorized set — source for the dialog's org-scoped known-project-name suggestions. */
+  allEmails: CategorizedEmail[];
+  /** Persists a GUID→name resolution and re-categorizes the set (from `useCategorizedMail`). */
+  resolveProjectGuid: (guid: string, name: string) => Promise<void>;
 }
 
 /**
@@ -134,9 +141,24 @@ export interface EmailListProps {
  * live in `useEmailList` (`.claude/rules/frontend-architecture.md`). Tags are consumed verbatim from
  * the engine; nothing is re-categorized (`.claude/rules/categorization-domain.md`).
  */
-export function EmailList({ status, error, folderName, emails }: EmailListProps) {
+export function EmailList({
+  status,
+  error,
+  folderName,
+  emails,
+  allEmails,
+  resolveProjectGuid,
+}: EmailListProps) {
   const styles = useStyles();
-  const { selectedEmail, isPanelOpen, openEmail, closePanel } = useEmailList(emails);
+  const {
+    selectedEmail,
+    isPanelOpen,
+    openEmail,
+    closePanel,
+    resolveTarget,
+    openResolve,
+    closeResolve,
+  } = useEmailList(emails);
 
   return (
     <div className={styles.root}>
@@ -161,6 +183,7 @@ export function EmailList({ status, error, folderName, emails }: EmailListProps)
                   <TableHeaderCell className={styles.colOrg}>Organization</TableHeaderCell>
                   <TableHeaderCell className={styles.colProject}>Project</TableHeaderCell>
                   <TableHeaderCell className={styles.colType}>Type</TableHeaderCell>
+                  <TableHeaderCell className={styles.colActions}>Actions</TableHeaderCell>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -207,6 +230,22 @@ export function EmailList({ status, error, folderName, emails }: EmailListProps)
                       <TableCell className={styles.cell}>{email.customer}</TableCell>
                       <TableCell className={styles.cell}>{email.project}</TableCell>
                       <TableCell className={styles.cell}>{typeLabel(email.type)}</TableCell>
+                      <TableCell className={styles.cell}>
+                        {email.projectIsUnresolvedGuid && (
+                          <Button
+                            size="small"
+                            appearance="secondary"
+                            // Keep row activation (which opens the body panel) from firing too.
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              openResolve(email.project, email.customer);
+                            }}
+                            onKeyDown={(event) => event.stopPropagation()}
+                          >
+                            Resolve project GUID
+                          </Button>
+                        )}
+                      </TableCell>
                     </TableRow>
                   );
                 })}
@@ -237,6 +276,16 @@ export function EmailList({ status, error, folderName, emails }: EmailListProps)
           {selectedEmail && <EmailBody message={selectedEmail.message} />}
         </DrawerBody>
       </InlineDrawer>
+
+      {resolveTarget && (
+        <ResolveProjectDialog
+          guid={resolveTarget.guid}
+          customer={resolveTarget.customer}
+          knownProjectNames={deriveKnownProjectNames(allEmails, resolveTarget.customer)}
+          onResolve={resolveProjectGuid}
+          onCancel={closeResolve}
+        />
+      )}
     </div>
   );
 }

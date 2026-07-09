@@ -21,7 +21,7 @@ import {
  * not itself, so selecting one narrows the other's options/counts while staying mutually consistent.
  */
 export function useOrganizer() {
-  const { status, error, folderName, categorized } = useCategorizedMail();
+  const { status, error, folderName, categorized, resolveProjectGuid } = useCategorizedMail();
   const [selectedCustomer, setSelectedCustomer] = useState<string>(ALL_CUSTOMERS);
   const [selectedProject, setSelectedProject] = useState<string | null>(null);
   const [selectedTypeKeys, setSelectedTypeKeys] = useState<ReadonlySet<string>>(new Set());
@@ -88,6 +88,7 @@ export function useOrganizer() {
     folderName,
     categorized,
     filtered,
+    resolveProjectGuid,
     selectedCustomer,
     selectCustomer,
     projectOptions,

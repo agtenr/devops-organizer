@@ -13,9 +13,10 @@ const emails: CategorizedEmail[] = [
       body: { contentType: 'html', content: '<h1>Build failed</h1><p>See the logs.</p>' },
     },
     customer: 'Contoso',
-    project: 'Alpha',
+    project: '2595f41b-a4ea-4a8e-a89c-1cc0bd9384b4',
     type: { category: 'Build', subType: 'Failed' },
     needsReview: true,
+    projectIsUnresolvedGuid: true,
   },
   {
     message: {
@@ -28,13 +29,21 @@ const emails: CategorizedEmail[] = [
     project: 'Beta',
     type: { category: 'Pull request', subType: 'Review requested' },
     needsReview: false,
+    projectIsUnresolvedGuid: false,
   },
 ];
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <FluentProvider theme={webLightTheme}>
-      <EmailList status="success" error="" folderName="DevOps" emails={emails} />
+      <EmailList
+        status="success"
+        error=""
+        folderName="DevOps"
+        emails={emails}
+        allEmails={emails}
+        resolveProjectGuid={() => Promise.resolve()}
+      />
     </FluentProvider>
   </StrictMode>,
 );

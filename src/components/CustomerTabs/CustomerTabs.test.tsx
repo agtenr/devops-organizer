@@ -6,7 +6,14 @@ import { CustomerTabs } from './CustomerTabs';
 import { ALL_CUSTOMERS } from './useCustomerTabs';
 
 function email(customer: string): CategorizedEmail {
-  return { message: {}, customer, project: 'p', type: UNKNOWN_TYPE, needsReview: false };
+  return {
+    message: {},
+    customer,
+    project: 'p',
+    type: UNKNOWN_TYPE,
+    needsReview: false,
+    projectIsUnresolvedGuid: false,
+  };
 }
 
 // Fluent UI v9 components read theme/context from FluentProvider, so mount through the same wrapper
