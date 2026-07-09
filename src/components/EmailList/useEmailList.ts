@@ -1,48 +1,13 @@
 import { useCallback, useState } from 'react';
-import type { Message } from '@microsoft/microsoft-graph-types';
 import type { CategorizedEmail } from '../../models/categorization';
 
 /**
  * `EmailList` view logic (see `.claude/rules/frontend-architecture.md` — logic lives in a colocated
- * hook, not JSX). Owns the **view-only** body-panel selection and the pure, unit-testable formatters
- * the rows/panel consume. It never re-derives categorization tags — the engine's
- * `(customer, project, type)` triple is consumed verbatim (`.claude/rules/categorization-domain.md`).
+ * hook, not JSX). Owns the **view-only** body-panel selection; the pure display formatters the
+ * rows/panel consume live alongside in `emailFormatters.ts`. It never re-derives categorization
+ * tags — the engine's `(customer, project, type)` triple is consumed verbatim
+ * (`.claude/rules/categorization-domain.md`).
  */
-
-/** Formats an ISO `receivedDateTime` for a list row. Returns `''` for missing/unparseable input. */
-export function formatReceivedDate(iso: string | null | undefined): string {
-  if (!iso) {
-    return '';
-  }
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) {
-    return '';
-  }
-  return date.toLocaleString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
-/**
- * The message body resolved into how it must be rendered: `html` bodies go into a sandboxed iframe,
- * everything else (plain text, or a missing/empty body) renders as escaped preformatted text.
- */
-export type ResolvedBody = { kind: 'html'; content: string } | { kind: 'text'; content: string };
-
-/** Discriminates a Graph message body by `contentType`; empty/missing body → `{ kind:'text', '' }`. */
-export function resolveBody(message: Message): ResolvedBody {
-  const content = message.body?.content ?? '';
-  if (!content) {
-    return { kind: 'text', content: '' };
-  }
-  return message.body?.contentType === 'html'
-    ? { kind: 'html', content }
-    : { kind: 'text', content };
-}
 
 /** The body-panel selection state exposed to `EmailList`. */
 export interface UseEmailListResult {
