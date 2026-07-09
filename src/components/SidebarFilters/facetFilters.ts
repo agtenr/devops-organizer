@@ -23,7 +23,7 @@ export function typeKey(type: MessageType): string {
   return `${type.category}::${type.subType}`;
 }
 
-/** Human-readable label for a {@link MessageType} — matches the badge format used in `MailDebug`. */
+/** Human-readable label for a {@link MessageType} — the `category · subType` badge/column format. */
 export function typeLabel(type: MessageType): string {
   return `${type.category} · ${type.subType}`;
 }

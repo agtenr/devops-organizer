@@ -1,7 +1,7 @@
 import { makeStyles, tokens } from '@fluentui/react-components';
 import { CustomerTabs } from '../CustomerTabs/CustomerTabs';
 import { SidebarFilters } from '../SidebarFilters/SidebarFilters';
-import { MailDebug } from '../MailDebug/MailDebug';
+import { EmailList } from '../EmailList/EmailList';
 import { useOrganizer } from './useOrganizer';
 
 const useStyles = makeStyles({
@@ -24,9 +24,8 @@ const useStyles = makeStyles({
 /**
  * Permanent container between the top bar and the e-mail view. It owns the three-filter selection
  * (organization tab + project/type facets, via `useOrganizer`), feeds the tab strip and the sidebar
- * the full/faceted sets so their counters reflect availability, and feeds the view the composed
- * filtered set. Today the view is the temporary `MailDebug` visualizer; a later story swaps that for
- * the real list view while keeping this container and the sidebar.
+ * the full/faceted sets so their counters reflect availability, and feeds the composed filtered set
+ * to the center list view (`EmailList`), which owns only its own body-panel selection.
  */
 export function Organizer() {
   const styles = useStyles();
@@ -65,7 +64,7 @@ export function Organizer() {
           />
         </div>
         <div className={styles.view}>
-          <MailDebug status={status} error={error} folderName={folderName} emails={filtered} />
+          <EmailList status={status} error={error} folderName={folderName} emails={filtered} />
         </div>
       </div>
     </>
