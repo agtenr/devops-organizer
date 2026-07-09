@@ -18,3 +18,8 @@ test-results/
 
 # Demo files
 design/demo-messages
+
+# Real email data — categorization test fixtures are derived from the real DevOps
+# notification corpus, so they stay local and are never committed (see the fixtures
+# README). The README itself is tracked; the derived .json fixtures are not.
+src/services/categorization/__fixtures__/*.json
