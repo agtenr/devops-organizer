@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { FluentProvider, webLightTheme } from '@fluentui/react-components';
 import type { Message } from '@microsoft/microsoft-graph-types';
 import { describe, expect, it, vi } from 'vitest';
@@ -37,6 +37,7 @@ function renderList(overrides: Partial<EmailListProps> = {}) {
     emails: [email()],
     allEmails: [],
     resolveProjectGuid: vi.fn(() => Promise.resolve()),
+    deleteEmails: vi.fn(() => Promise.resolve()),
     ...overrides,
   };
   return render(
@@ -254,5 +255,121 @@ describe('EmailList — body panel', () => {
     expect(frame.tagName).toBe('IFRAME');
     expect(frame.getAttribute('srcdoc')).toBe('<p>hello</p>');
     expect(frame.getAttribute('sandbox')).toBe('');
+  });
+});
+
+describe('EmailList — delete actions', () => {
+  const two = () => [
+    email({
+      message: { id: 'a', subject: 'First', body: { contentType: 'text', content: 'body a' } },
+    }),
+    email({ message: { id: 'b', subject: 'Second' } }),
+  ];
+
+  it('has a select-all checkbox plus one per row, and selecting does not open the body panel', () => {
+    renderList({ emails: two() });
+
+    // select-all + 2 rows
+    const checkboxes = screen.getAllByRole('checkbox');
+    expect(checkboxes).toHaveLength(3);
+
+    fireEvent.click(checkboxes[1]);
+    // The row's body panel must not have opened from the checkbox click.
+    expect(screen.queryByText('body a')).not.toBeInTheDocument();
+  });
+
+  it('enables the bulk Delete button only when 2+ rows are selected', () => {
+    renderList({ emails: two() });
+    const checkboxes = screen.getAllByRole('checkbox');
+
+    expect(screen.getByRole('button', { name: 'Delete' })).toBeDisabled();
+
+    fireEvent.click(checkboxes[1]);
+    // Exactly one selected — a single row uses its own icon, so the bulk button stays disabled.
+    expect(screen.getByRole('button', { name: 'Delete' })).toBeDisabled();
+
+    fireEvent.click(checkboxes[2]);
+    expect(screen.getByRole('button', { name: 'Delete (2)' })).toBeEnabled();
+  });
+
+  it('opens the single-delete confirm from the row icon without opening the body panel', () => {
+    renderList({ emails: two() });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete First' }));
+
+    const dialog = screen.getByRole('dialog');
+    expect(
+      within(dialog).getByText('Are you sure you want to delete "First"?'),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('body a')).not.toBeInTheDocument();
+  });
+
+  it('deletes a single e-mail via deleteEmails on confirm', async () => {
+    const deleteEmails = vi.fn(() => Promise.resolve());
+    renderList({ emails: two(), deleteEmails });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete First' }));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Yes' }));
+
+    await waitFor(() => expect(deleteEmails).toHaveBeenCalledWith(['a']));
+  });
+
+  it('bulk-deletes the selected e-mails via deleteEmails', async () => {
+    const deleteEmails = vi.fn(() => Promise.resolve());
+    renderList({ emails: two(), deleteEmails });
+
+    const checkboxes = screen.getAllByRole('checkbox');
+    fireEvent.click(checkboxes[1]);
+    fireEvent.click(checkboxes[2]);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete (2)' }));
+    const dialog = screen.getByRole('dialog');
+    expect(
+      within(dialog).getByText('Are you sure you want to delete 2 items?'),
+    ).toBeInTheDocument();
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Yes' }));
+    await waitFor(() => expect(deleteEmails).toHaveBeenCalledWith(['a', 'b']));
+  });
+
+  it('clears the selection after a successful bulk delete', async () => {
+    const deleteEmails = vi.fn(() => Promise.resolve());
+    renderList({ emails: two(), deleteEmails });
+
+    const checkboxes = screen.getAllByRole('checkbox');
+    fireEvent.click(checkboxes[1]);
+    fireEvent.click(checkboxes[2]);
+    fireEvent.click(screen.getByRole('button', { name: 'Delete (2)' }));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Yes' }));
+
+    // On success the dialog closes and the selection resets, so the bulk button is disabled again.
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Delete' })).toBeDisabled());
+  });
+
+  it('shows the error and keeps the row when a delete fails', async () => {
+    const deleteEmails = vi.fn(() => Promise.reject(new Error('Graph 500')));
+    renderList({ emails: two(), deleteEmails });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete First' }));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Yes' }));
+
+    expect(await screen.findByText(/Could not delete: Graph 500/)).toBeInTheDocument();
+    expect(screen.getByRole('row', { name: /First/ })).toBeInTheDocument();
+  });
+
+  it('renders the resolve-project-GUID action as an icon button', () => {
+    renderList({
+      emails: [
+        email({
+          message: { id: 'g', subject: 'Guid row' },
+          project: '2595f41b-a4ea-4a8e-a89c-1cc0bd9384b4',
+          projectIsUnresolvedGuid: true,
+        }),
+      ],
+    });
+
+    const button = screen.getByRole('button', { name: 'Resolve project GUID' });
+    // Icon button: labelled by aria-label, with no visible text label.
+    expect(button).toHaveTextContent('');
   });
 });
