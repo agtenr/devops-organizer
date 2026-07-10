@@ -20,13 +20,22 @@ const useStyles = makeStyles({
     marginBlockEnd: tokens.spacingVerticalXXS,
   },
   option: {
-    // Full-width rows with the label on the left and the counter pinned to the right.
+    // Full-width row: value ellipsizes on the left, counter pinned right; never wraps to a 2nd line.
+    width: '100%',
     justifyContent: 'space-between',
   },
-  optionLabel: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: tokens.spacingHorizontalS,
+  optionValue: {
+    flexGrow: 1,
+    minWidth: 0,
+    textAlign: 'left',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+    // 12px so filter values read as distinct from the larger (14px) semibold group titles (story 46).
+    fontSize: tokens.fontSizeBase200,
+  },
+  optionCount: {
+    flexShrink: 0,
   },
   empty: {
     color: tokens.colorNeutralForeground3,
@@ -65,16 +74,15 @@ function FilterGroup({ heading, options, isSelected, onToggle, ariaLabel }: Filt
             checked={isSelected(option.value)}
             onClick={() => onToggle(option.value)}
           >
-            <span className={styles.optionLabel}>
-              {option.label}
-              <CounterBadge
-                count={option.count}
-                appearance="filled"
-                color="informative"
-                size="small"
-                showZero
-              />
-            </span>
+            <span className={styles.optionValue}>{option.label}</span>
+            <CounterBadge
+              className={styles.optionCount}
+              count={option.count}
+              appearance="filled"
+              color="informative"
+              size="small"
+              showZero
+            />
           </ToggleButton>
         ))
       )}
