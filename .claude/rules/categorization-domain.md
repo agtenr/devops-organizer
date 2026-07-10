@@ -18,6 +18,14 @@ by tab (customer) and sidebar (project / type) is trivial.
 
 Each Email maps to exactly one `(Customer, Project, Type)` triple.
 
+- **The demo corpus is the authoritative source of the message-type taxonomy.** The
+  **`design/demo-messages/`** corpus — not story 37 §3's reference table — is the ground truth for
+  which message types exist. The reference table is a **starting point** and is **not exhaustive**:
+  real types present in the corpus can be absent from it (e.g. **"Pull request published"** and
+  **"Build cancelled"**, surfaced in story 44). The Build/PR sub-type unions (and any type
+  enumeration) must cover **every** message type actually present in the corpus — reconcile against
+  the corpus, not the table.
+
 ## How categorization works
 - Categorization **gates on folder membership only** — every message in the `DevOps` folder is
   treated as an ADO notification. **Sender is never a gate**, because of the delivery topology
