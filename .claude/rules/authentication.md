@@ -29,9 +29,11 @@
 - Request **least privilege, evaluated per stage** — request only the scopes the **current
   slice actually needs**, not a fixed always-on set. Sign-in **alone** needs **no Graph scope**
   (the display name comes from the ID-token claim); the read-only mail scope (**`Mail.Read`**) is
-  added only when the app **actually reads mail**. Never broaden beyond read-only mail access, and
-  do not add write or broader scopes without an explicit reason. (See **Scope staging** below for
-  how this played out across stories 30 and 36.)
+  added only when the app **actually reads mail**. **Read stays the default posture**: a mail
+  **write** scope is added only when a feature genuinely requires it — **`Mail.ReadWrite`** for
+  **deleting** mail (story 43) — and even then it stays **scoped to mail** (never broader). Do not
+  add write or broader scopes without an explicit, per-slice reason. (See **Scope staging** below for
+  how this played out across stories 30, 36 and 43.)
 - Never hardcode the client ID / tenant ID / folder name in source — always via the
   `VITE_*` vars.
 
@@ -58,3 +60,11 @@
   is unsupported for the **organizational (Entra ID) accounts** this app signs in with, so
   `Files.ReadWrite` is the least-privilege scope that actually works here (the data still lives in the
   dedicated app folder). This is the first write scope; it stays scoped to files (never broader).
+- **Mail deletion (story 43, done):** the app now **deletes** mail (row-level and bulk), which needs a
+  mail **write** scope, so **`Mail.Read`** is upgraded to **`Mail.ReadWrite`** in both the **sign-in**
+  request (`loginRequest.scopes`) and the Graph client scopes — consented once at sign-in and acquired
+  silently thereafter, exactly like the earlier scopes. **Read remains the default posture**: this is
+  the first *mail* write scope and it is added **only** because delete requires it; it stays **scoped to
+  mail** (no broader `Mail.*` or unrelated scopes). Deletion uses Graph's default `DELETE
+  /me/messages/{id}`, which moves the message to **Deleted Items** (recoverable) — not a permanent
+  delete.

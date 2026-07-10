@@ -2,10 +2,11 @@ import { PageIterator } from '@microsoft/microsoft-graph-client';
 import type { Client, PageCollection } from '@microsoft/microsoft-graph-client';
 import type { MailFolder, Message } from '@microsoft/microsoft-graph-types';
 
-// The fields the story requires (sender, subject, body) plus `from` (ADO notifications set the
-// practical author there, which can differ from `sender`) and `receivedDateTime` for a stable
-// order in the dump.
-const MESSAGE_FIELDS = 'subject,sender,from,body,receivedDateTime';
+// `id` (the delete key — story 43 deletes by message id, so select it explicitly rather than relying
+// on Graph's implicit inclusion), the fields the story requires (sender, subject, body), plus `from`
+// (ADO notifications set the practical author there, which can differ from `sender`) and
+// `receivedDateTime` for a stable order in the dump.
+const MESSAGE_FIELDS = 'id,subject,sender,from,body,receivedDateTime';
 
 // Graph page size. The working set is bounded (~100 messages); paging drains every page so "all
 // e-mails from the folder" is honoured regardless (see `.claude/rules/categorization-domain.md`).
@@ -45,4 +46,15 @@ export async function fetchMailFromFolder(client: Client, folderName: string): P
   await iterator.iterate();
 
   return messages;
+}
+
+/**
+ * Deletes a single message by its id via Microsoft Graph (story 43). Graph's `DELETE
+ * /me/messages/{id}` moves the message to the mailbox's Deleted Items (recoverable) — not a permanent
+ * delete. Requires the `Mail.ReadWrite` scope (see `.claude/rules/authentication.md`). One message per
+ * call keeps this trivial; the caller (`useCategorizedMail.deleteEmails`) orchestrates batches and
+ * prunes the in-memory set. Rejects if Graph rejects, so the caller can surface the failure.
+ */
+export async function deleteMailMessage(client: Client, id: string): Promise<void> {
+  await client.api(`/me/messages/${id}`).delete();
 }
