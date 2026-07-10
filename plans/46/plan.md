@@ -32,9 +32,10 @@ auth/scope change (`.claude/rules/authentication.md` and `categorization-domain.
   scroll under a pinned header is out of scope.
 - **Keep the existing `InlineDrawer` as the preview.** The story's "preview modal" is the existing
   inline drawer; we make it full-height, we do **not** convert it to a `Dialog`/overlay modal.
-- **Do not refactor `EmailList`'s data/status handling.** The recommended loading approach gates in
-  `Organizer` and leaves `EmailList`'s own loading/error branches intact (still exercised by its
-  unit tests and the harness) rather than re-plumbing its props. (See open question 1.)
+- **`EmailList` becomes success-only.** Per the reviewer's decision (OQ1), `Organizer` owns the
+  loading spinner and the error view; `EmailList` drops its `status`/`error`/`folderName` props and
+  renders only the success states (the list, or the empty "No e-mails to show" message). On load
+  failure nothing is shown but the error. This keeps the loading/error UI in exactly one place.
 - **Minimal global CSS.** The only hand-rolled/global CSS is a small `makeStaticStyles` reset making
   the `html/body/#root` chain full-height (griffel, per `frontend-architecture.md` — griffel over
   hand-rolled CSS). Everything else stays in colocated `makeStyles`.
@@ -67,9 +68,12 @@ is the only element that overflows and scrolls; the drawer, being a full-height 
 `main`, is automatically full viewport height.
 
 **Loading gate:** `Organizer` already receives `status`/`error`/`folderName` from `useOrganizer`.
-Return early: `status === 'loading'` → a centered `Spinner` filling the Organizer region;
-`status === 'error'` → the error text; otherwise render tabs + body. Because tabs/filters are simply
-not mounted until `success`, the `All (0)`/`None` flash is gone.
+Return early: `status === 'loading'` → a centered `Spinner` (label `Loading mail from "${folderName}"…`)
+filling the Organizer region; `status === 'error'` → the error text **alone**; otherwise render tabs +
+body. Because tabs/filters are not mounted until `success`, the `All (0)`/`None` flash is gone.
+`EmailList` is correspondingly slimmed to a success-only view (props lose `status`/`error`/`folderName`)
+so the loading/error UI lives in exactly one place (`Organizer`); `EmailList` keeps only its list and
+empty ("No e-mails to show") states.
 
 **E2E seam:** `Organizer` gains an optional prop `useData?: () => OrganizerData` defaulting to the
 real `useOrganizer`. Production usage (`App`) passes nothing. The Playwright harness passes a mock
@@ -79,7 +83,8 @@ hook returning static emails and a chosen `status`, so it drives the **real** `O
 
 **Files to change:** `src/App/App.tsx` (shell + global reset), `src/main.tsx` (provider full-height),
 `src/components/TopBar/TopBar.tsx` (fixed band), `src/components/Organizer/Organizer.tsx` (fill +
-loading gate + `useData` seam), `src/components/EmailList/EmailList.tsx` (fill + list scroller),
+loading/error gate + `useData` seam), `src/components/EmailList/EmailList.tsx` (success-only props +
+fill + list scroller),
 `src/components/SidebarFilters/SidebarFilters.tsx` (single-line/left/12px), `src/harness.tsx` +
 `harness.html` (drive real layout with mock data), `e2e/harness.spec.ts` (layout assertions).
 
@@ -104,6 +109,19 @@ shape (all fields consumed in `Organizer.tsx`: `status`, `error`, `folderName`, 
 `projectOptions`, `selectedProject`, `onSelectProject`, `typeOptions`, `selectedTypeKeys`,
 `onToggleType`). Deriving the type via `ReturnType` keeps the mock honest if the hook changes.
 
+Second, `EmailList`'s props shrink to the success-only set (OQ1) — `status`/`error`/`folderName` are
+removed, and `Organizer` consumes them for the spinner/error view instead:
+
+```ts
+// src/components/EmailList/EmailList.tsx
+export interface EmailListProps {
+  emails: CategorizedEmail[]; // the already-filtered set to render
+  allEmails: CategorizedEmail[]; // full set — source for resolve-dialog suggestions
+  resolveProjectGuid: (guid: string, name: string) => Promise<void>;
+  deleteEmails: (ids: string[]) => Promise<void>;
+}
+```
+
 ## Task breakdown
 
 Ordered so the height chain exists before the pieces that rely on it.
@@ -112,8 +130,8 @@ Ordered so the height chain exists before the pieces that rely on it.
    `makeStaticStyles` setting `html, body, #root { height: 100%; margin: 0 }` and `body { overflow:
    hidden }`; call its hook in `App`. Wrap `<TopBar/><Organizer/>` in a shell `div`
    (`height:100%`, `display:flex`, `flexDirection:column`, `overflow:hidden`). In `src/main.tsx`
-   give `<FluentProvider>` full height so the shell can fill (see open question 3 for the exact
-   mechanism). *Rule:* `.claude/rules/frontend-architecture.md` (griffel over CSS; the fixed-top
+   give `<FluentProvider>` full height via a structural `style={{ height: '100%' }}` (settled OQ3).
+   *Rule:* `.claude/rules/frontend-architecture.md` (griffel over CSS; the fixed-top
    nav + layout invariants).
 2. **TopBar as a fixed band.** In `TopBar.tsx`, drop `position: sticky`/`top`/`zIndex` (the shell
    now fixes it) and make the header a non-shrinking flex child (`flexShrink: 0`); update the
@@ -124,14 +142,16 @@ Ordered so the height chain exists before the pieces that rely on it.
    `useOrganizer`) and call `const {...} = (useData ?? useOrganizer)()`; export
    `OrganizerData = ReturnType<typeof useOrganizer>` from `useOrganizer.ts`. Return a centered
    `Spinner` (label `Loading mail from "${folderName}"…`) when `status==='loading'` and the error
-   text when `status==='error'`, mounting `CustomerTabs`/`SidebarFilters`/`EmailList` only on
-   `success`. Make the `body` region fill (`flex:1`, `minHeight:0`) and the sidebar own its overflow
-   (`overflow-y:auto`, see open question 4). *Rules:* `frontend-architecture.md` (logic-in-hook
+   text **alone** when `status==='error'`, mounting `CustomerTabs`/`SidebarFilters`/`EmailList` only on
+   `success`. Make the `body` region fill (`flex:1`, `minHeight:0`) and give the sidebar its own
+   `overflow-y:auto` (settled OQ4). *Rules:* `frontend-architecture.md` (logic-in-hook
    boundary; sidebar/tabs invariants), `testing.md`.
-4. **EmailList: fill + single list scroller.** In `EmailList.tsx` styles, replace `root`'s
-   `minHeight: '70vh'` with `height: '100%'` + `minHeight: 0`; give `main` `flex:1`, `minHeight:0`
-   and `overflowY: 'auto'` (keep `overflowX:'auto'`). The drawer already has `flexShrink:0`, so it
-   now spans full height. No logic/props change. *Rule:* `frontend-architecture.md`.
+4. **EmailList: success-only + fill + single list scroller.** In `EmailList.tsx`, remove the
+   `status`/`error`/`folderName` props and their loading/error branches (Organizer owns them now);
+   keep the success rendering — the list, and the empty "No e-mails to show" state. In styles,
+   replace `root`'s `minHeight: '70vh'` with `height: '100%'` + `minHeight: 0`; give `main` `flex:1`,
+   `minHeight:0` and `overflowY: 'auto'` (keep `overflowX:'auto'`). The drawer already has
+   `flexShrink:0`, so it now spans full height. *Rule:* `frontend-architecture.md`.
 5. **SidebarFilters: single-line, left-aligned, 12px value.** In `SidebarFilters.tsx`, restructure
    each `ToggleButton` so its content is a full-width row: a value-text span (`flex:1`,
    `whiteSpace:nowrap`, `overflow:hidden`, `textOverflow:ellipsis`, `minWidth:0`, `textAlign:left`,
@@ -151,25 +171,20 @@ Ordered so the height chain exists before the pieces that rely on it.
 
 ## Assumptions & open questions
 
-- **OQ1 — Loading-gate placement.** Recommended: gate loading/error in `Organizer` (early return)
-  and leave `EmailList`'s own loading/error branches intact (harmless; still covered by its unit
-  tests and the harness). Alternative the reviewer may prefer: slim `EmailList` to a success-only
-  list view (drop `status`/`error`/`folderName`), moving those tests to `Organizer`.
-- **OQ2 — E2E strategy for the auth-gated app.** Recommended: a one-line `useData` hook-injection
-  seam on `Organizer` so the Playwright harness renders the real layout with mock data. Alternatives:
-  mock the MSAL cache in Playwright (flaky), or duplicate the layout JSX in the harness (diverges
-  from real CSS). Is the injection seam acceptable?
-- **OQ3 — Full-height mechanism for `FluentProvider`.** `FluentProvider` sits in `main.tsx` (outside
-  any component that can use a `makeStyles` hook). Recommended: pass `style={{ height: '100%' }}`
-  (one structural inline style). Alternatives: a `makeStaticStyles` global targeting its rendered
-  class, or restructuring so a component owns it. Acceptable to use the inline style here?
-- **OQ4 — Sidebar overflow when many facets.** Recommended: give the sidebar its own
-  `overflow-y:auto` so a long facet list scrolls **within** the sidebar and never grows the frame,
-  keeping the e-mail list the primary scroller. Alternative: require all filters always visible with
-  no sidebar scroll. Given the ~100-email cap facets are few, so this rarely triggers — confirm the
-  independent-scroll fallback is fine.
-- **OQ5 — 12px as token vs literal.** The story says "12px". Recommended: `tokens.fontSizeBase200`
-  (equals 12px, matches the token-first convention). Alternative: a literal `'12px'`. Preference?
+All initial open questions were resolved in review (PR #29 threads); no new questions arose from this
+revision:
+
+- **OQ1 — Loading-gate placement (reviewer chose the alternative).** Slim `EmailList` to a
+  **success-only** view (drop `status`/`error`/`folderName`); `Organizer` owns the loading spinner
+  and the error view, and on load failure **only the error** is shown. The loading/error tests move
+  from `EmailList.test.tsx` to the parent (`Organizer.test.tsx`). Folded into the plan above.
+- **OQ2 — E2E strategy: accepted.** Use the `useData` hook-injection seam on `Organizer` so the
+  Playwright harness renders the real layout with mock data (no MSAL).
+- **OQ3 — `FluentProvider` full height: accepted.** A single structural `style={{ height: '100%' }}`
+  in `main.tsx`.
+- **OQ4 — Sidebar overflow: accepted.** The sidebar gets its own `overflow-y:auto` so a long facet
+  list scrolls within it, keeping the e-mail list the primary scroller.
+- **OQ5 — 12px: accepted.** Use `tokens.fontSizeBase200` (equals 12px).
 
 ## Considerations
 
@@ -193,7 +208,10 @@ The project has an established test practice — **Vitest** unit/component tests
   - `status:'loading'` → the spinner is shown **and** no `Organizations` tablist / no `Filters`
     region is in the DOM.
   - `status:'success'` → tabs, filters, and the list are all present.
-  - `status:'error'` → the error text is shown and tabs/filters are absent.
+  - `status:'error'` → the error text is shown and tabs/filters/list are absent (error shown alone).
+  - Remove the now-obsolete loading/error cases from `EmailList.test.tsx` (those states no longer
+    exist on `EmailList` — they are covered by `Organizer.test.tsx` above); keep its list/empty and
+    row/selection/delete cases.
 - **E2E (Playwright)** — extend `e2e/harness.spec.ts` (keep the existing EmailList assertions):
   - **Preview full height:** open a row; the `.fui-InlineDrawer` boundingBox height ≈ viewport
     height (e.g. ≥ 90% of `viewport.height`).
@@ -218,8 +236,9 @@ The project has an established test practice — **Vitest** unit/component tests
       even with a long label (E2E).
 - [ ] Filter value text is 12px and visibly smaller than the group titles (E2E).
 - [ ] While mail is loading, only the header and a spinner are shown — no tabs and no filters mount
-      (jsdom presence + E2E `?state=loading`).
-- [ ] `Organizer` gates loading/error and the `useData` seam is typed via `OrganizerData`; the
+      (jsdom presence + E2E `?state=loading`); on load failure only the error is shown.
+- [ ] `EmailList` is success-only (`status`/`error`/`folderName` props removed); `Organizer` owns the
+      loading spinner and error view, and the `useData` seam is typed via `OrganizerData`; the
       harness drives the real layout with mock data.
 - [ ] Type-checks and builds cleanly; no ESLint errors; Prettier-formatted (`frontend-architecture.md`
       "what done looks like").
@@ -235,8 +254,10 @@ The project has an established test practice — **Vitest** unit/component tests
 - `src/components/TopBar/TopBar.tsx` — fixed band (drop sticky).
 - `src/components/Organizer/Organizer.tsx` — fill layout + loading/error gate + `useData` seam.
 - `src/components/Organizer/useOrganizer.ts` — export `OrganizerData` type.
-- `src/components/EmailList/EmailList.tsx` — fill height; `main` becomes the list scroller.
+- `src/components/EmailList/EmailList.tsx` — success-only (drop `status`/`error`/`folderName`); fill
+  height; `main` becomes the list scroller.
+- `src/components/EmailList/EmailList.test.tsx` — drop the loading/error cases (moved to Organizer).
 - `src/components/SidebarFilters/SidebarFilters.tsx` — single-line, left-aligned, 12px value.
 - `src/harness.tsx`, `harness.html` — drive the real `Organizer` layout with mock data + `?state`.
 - `e2e/harness.spec.ts` — layout/scroll/filter/loading assertions.
-- `src/components/Organizer/Organizer.test.tsx` (new) — loading-gate component tests.
+- `src/components/Organizer/Organizer.test.tsx` (new) — loading/error/success gate component tests.
