@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useMsal } from '@azure/msal-react';
 import type { Message } from '@microsoft/microsoft-graph-types';
 import { createGraphClient } from '../services/graph/graphClient';
-import { fetchMailFromFolder } from '../services/mail/mailService';
+import { deleteMailMessage, fetchMailFromFolder } from '../services/mail/mailService';
 import { fetchProjectMap, saveProjectMapping } from '../services/projectMap/projectMapService';
 import { categorizeEmails } from '../services/categorization/categorizationService';
 import type { CategorizedEmail, ProjectGuidMap } from '../models/categorization';
@@ -25,6 +25,13 @@ export interface UseCategorizedMailResult {
    * (story 42). Rejects if the save fails, so the caller can surface an error.
    */
   resolveProjectGuid: (guid: string, name: string) => Promise<void>;
+  /**
+   * Deletes the given messages (by id) via Graph and prunes every **successfully** deleted id from the
+   * in-memory set, which re-categorizes it so the rows disappear (story 43). Uses `Promise.allSettled`,
+   * so a partial failure still removes the ones that succeeded; it then rejects with an error naming how
+   * many of `ids` failed, letting the caller surface it. A no-op for an empty list.
+   */
+  deleteEmails: (ids: string[]) => Promise<void>;
 }
 
 /**
@@ -96,7 +103,31 @@ export function useCategorizedMail(): UseCategorizedMailResult {
     [account],
   );
 
+  const deleteEmails = useCallback(
+    async (ids: string[]) => {
+      if (!account || ids.length === 0) {
+        return;
+      }
+      const client = createGraphClient(account);
+      const results = await Promise.allSettled(ids.map((id) => deleteMailMessage(client, id)));
+      const deletedIds = new Set(ids.filter((_, index) => results[index].status === 'fulfilled'));
+      if (deletedIds.size > 0) {
+        // Drop the successfully deleted ids so `categorized` re-derives without them (the list refresh).
+        setMessages((prev) => prev.filter((message) => !message.id || !deletedIds.has(message.id)));
+      }
+      const failed = ids.length - deletedIds.size;
+      if (failed > 0) {
+        // Surface partial/total failure while keeping the succeeded prune above (visibility over silent
+        // inconsistency — see `.claude/rules/categorization-domain.md` and `plans/43/plan.md`).
+        throw new Error(
+          `${failed} of ${ids.length} message${ids.length === 1 ? '' : 's'} could not be deleted.`,
+        );
+      }
+    },
+    [account],
+  );
+
   const categorized = useMemo(() => categorizeEmails(messages, projectMap), [messages, projectMap]);
 
-  return { status, error, folderName: mailFolder, categorized, resolveProjectGuid };
+  return { status, error, folderName: mailFolder, categorized, resolveProjectGuid, deleteEmails };
 }

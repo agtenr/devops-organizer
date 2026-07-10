@@ -4,11 +4,12 @@ import { InteractionRequiredAuthError } from '@azure/msal-browser';
 import type { AccountInfo } from '@azure/msal-browser';
 import { msalInstance } from '../../auth/msalConfig';
 
-// Graph scopes the app acquires tokens for: read-only mail (story 36) and read/write files to persist
-// the project GUID map in the user's OneDrive app folder (story 42). Both are consented once at sign-in
-// (see msalConfig `loginRequest`), so acquireTokenSilent normally returns a cached/renewed token with no
-// user interaction. See `.claude/rules/authentication.md` for the scope-staging rationale.
-const GRAPH_SCOPES = ['Mail.Read', 'Files.ReadWrite'];
+// Graph scopes the app acquires tokens for: read/write mail (read story 36, delete story 43) and
+// read/write files to persist the project GUID map in the user's OneDrive app folder (story 42). All
+// are consented once at sign-in (see msalConfig `loginRequest`), so acquireTokenSilent normally returns
+// a cached/renewed token with no user interaction. See `.claude/rules/authentication.md` for the
+// scope-staging rationale (read stays the default posture; write is scoped to mail for delete).
+const GRAPH_SCOPES = ['Mail.ReadWrite', 'Files.ReadWrite'];
 
 /**
  * Builds a Microsoft Graph client authenticated as the signed-in user. Tokens are acquired
