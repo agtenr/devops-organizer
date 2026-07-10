@@ -31,9 +31,6 @@ function email(
 
 function renderList(overrides: Partial<EmailListProps> = {}) {
   const props: EmailListProps = {
-    status: 'success',
-    error: '',
-    folderName: 'DevOps',
     emails: [email()],
     allEmails: [],
     resolveProjectGuid: vi.fn(() => Promise.resolve()),
@@ -48,16 +45,8 @@ function renderList(overrides: Partial<EmailListProps> = {}) {
 }
 
 describe('EmailList — states', () => {
-  it('shows a spinner while loading', () => {
-    renderList({ status: 'loading', emails: [] });
-    expect(screen.getByText(/Loading mail from "DevOps"/)).toBeInTheDocument();
-  });
-
-  it('shows the error message on error', () => {
-    renderList({ status: 'error', error: 'boom', emails: [] });
-    expect(screen.getByText(/Failed to load mail: boom/)).toBeInTheDocument();
-  });
-
+  // Loading/error are no longer EmailList's concern (story 46) — Organizer owns them; see
+  // Organizer.test.tsx. EmailList is success-only: it renders the list, or this empty state.
   it('shows an empty state when there are no e-mails', () => {
     renderList({ emails: [] });
     expect(screen.getByText(/No e-mails to show/)).toBeInTheDocument();
