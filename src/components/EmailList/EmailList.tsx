@@ -5,7 +5,6 @@ import {
   DrawerHeader,
   DrawerHeaderTitle,
   InlineDrawer,
-  Spinner,
   Table,
   TableBody,
   TableCell,
@@ -28,16 +27,21 @@ import { formatReceivedDate, resolveBody } from './emailFormatters';
 import { useEmailList } from './useEmailList';
 
 const useStyles = makeStyles({
-  // List fills the view; the body drawer docks to the right of it (inline = non-blocking).
+  // List fills the view; the body drawer docks to the right of it (inline = non-blocking). Fills the
+  // full height it is given so the drawer spans it and `main` is the only scroller (story 46).
   root: {
     display: 'flex',
     minWidth: 0,
-    minHeight: '70vh',
+    height: '100%',
+    minHeight: 0,
   },
+  // The single scrolling region: with a long list only this overflows (the frame around it is fixed).
   main: {
     flexGrow: 1,
     minWidth: 0,
+    minHeight: 0,
     overflowX: 'auto',
+    overflowY: 'auto',
     paddingBlock: tokens.spacingVerticalM,
     paddingInline: tokens.spacingHorizontalL,
   },
@@ -47,10 +51,6 @@ const useStyles = makeStyles({
     justifyContent: 'flex-end',
     marginBlockEnd: tokens.spacingVerticalS,
     minHeight: '32px',
-  },
-  error: {
-    color: tokens.colorPaletteRedForeground1,
-    fontFamily: tokens.fontFamilyMonospace,
   },
   empty: {
     color: tokens.colorNeutralForeground3,
@@ -139,9 +139,6 @@ function EmailBody({ message }: { message: Message }) {
 }
 
 export interface EmailListProps {
-  status: 'loading' | 'success' | 'error';
-  error: string;
-  folderName: string;
   /** The already-filtered categorized set to render (org ∩ project ∩ types), from `useOrganizer`. */
   emails: CategorizedEmail[];
   /** The full categorized set — source for the dialog's org-scoped known-project-name suggestions. */
@@ -160,15 +157,7 @@ export interface EmailListProps {
  * live in `useEmailList` (`.claude/rules/frontend-architecture.md`). Tags are consumed verbatim from
  * the engine; nothing is re-categorized (`.claude/rules/categorization-domain.md`).
  */
-export function EmailList({
-  status,
-  error,
-  folderName,
-  emails,
-  allEmails,
-  resolveProjectGuid,
-  deleteEmails,
-}: EmailListProps) {
+export function EmailList({ emails, allEmails, resolveProjectGuid, deleteEmails }: EmailListProps) {
   const styles = useStyles();
   const {
     selectedEmail,
@@ -202,143 +191,137 @@ export function EmailList({
 
   return (
     <div className={styles.root}>
-      <div className={styles.main}>
-        {status === 'loading' && <Spinner label={`Loading mail from "${folderName}"…`} />}
-        {status === 'error' && (
-          <Text as="p" className={styles.error}>
-            Failed to load mail: {error}
+      {/* data-testid marks the single scroll region so the E2E layout test can assert only it scrolls. */}
+      <div className={styles.main} data-testid="email-scroll-region">
+        {emails.length === 0 ? (
+          <Text as="p" className={styles.empty}>
+            No e-mails to show.
           </Text>
-        )}
-        {status === 'success' &&
-          (emails.length === 0 ? (
-            <Text as="p" className={styles.empty}>
-              No e-mails to show.
-            </Text>
-          ) : (
-            <>
-              <div className={styles.toolbar}>
-                <Button
-                  appearance="primary"
-                  icon={<Delete20Regular />}
-                  // Bulk delete acts on 2+ selected rows; a single row uses its own row icon (story 43).
-                  disabled={selectedCount < 2}
-                  onClick={openDeleteBulk}
-                >
-                  Delete{selectedCount >= 2 ? ` (${selectedCount})` : ''}
-                </Button>
-              </div>
-              <Table aria-label="E-mails" size="small" className={styles.table}>
-                <TableHeader>
-                  <TableRow>
-                    <TableSelectionCell
-                      type="checkbox"
-                      checked={headerChecked}
-                      aria-label="Select all e-mails"
-                      className={styles.colSelect}
-                      onClick={() => toggleSelectAll(visibleIds)}
-                    />
-                    <TableHeaderCell className={styles.colDate}>Date</TableHeaderCell>
-                    <TableHeaderCell>Subject</TableHeaderCell>
-                    <TableHeaderCell className={styles.colOrg}>Organization</TableHeaderCell>
-                    <TableHeaderCell className={styles.colProject}>Project</TableHeaderCell>
-                    <TableHeaderCell className={styles.colType}>Type</TableHeaderCell>
-                    <TableHeaderCell className={styles.colActions}>Actions</TableHeaderCell>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {emails.map((email, index) => {
-                    const id = email.message.id;
-                    const subject = email.message.subject ?? '(no subject)';
-                    const open = () => {
-                      if (id) {
-                        openEmail(id);
-                      }
-                    };
-                    return (
-                      <TableRow
-                        key={id ?? index}
-                        className={styles.row}
-                        tabIndex={0}
-                        aria-label={subject}
-                        onClick={open}
-                        onKeyDown={(event) => {
-                          if (event.key === 'Enter' || event.key === ' ') {
-                            event.preventDefault();
-                            open();
+        ) : (
+          <>
+            <div className={styles.toolbar}>
+              <Button
+                appearance="primary"
+                icon={<Delete20Regular />}
+                // Bulk delete acts on 2+ selected rows; a single row uses its own row icon (story 43).
+                disabled={selectedCount < 2}
+                onClick={openDeleteBulk}
+              >
+                Delete{selectedCount >= 2 ? ` (${selectedCount})` : ''}
+              </Button>
+            </div>
+            <Table aria-label="E-mails" size="small" className={styles.table}>
+              <TableHeader>
+                <TableRow>
+                  <TableSelectionCell
+                    type="checkbox"
+                    checked={headerChecked}
+                    aria-label="Select all e-mails"
+                    className={styles.colSelect}
+                    onClick={() => toggleSelectAll(visibleIds)}
+                  />
+                  <TableHeaderCell className={styles.colDate}>Date</TableHeaderCell>
+                  <TableHeaderCell>Subject</TableHeaderCell>
+                  <TableHeaderCell className={styles.colOrg}>Organization</TableHeaderCell>
+                  <TableHeaderCell className={styles.colProject}>Project</TableHeaderCell>
+                  <TableHeaderCell className={styles.colType}>Type</TableHeaderCell>
+                  <TableHeaderCell className={styles.colActions}>Actions</TableHeaderCell>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {emails.map((email, index) => {
+                  const id = email.message.id;
+                  const subject = email.message.subject ?? '(no subject)';
+                  const open = () => {
+                    if (id) {
+                      openEmail(id);
+                    }
+                  };
+                  return (
+                    <TableRow
+                      key={id ?? index}
+                      className={styles.row}
+                      tabIndex={0}
+                      aria-label={subject}
+                      onClick={open}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          open();
+                        }
+                      }}
+                    >
+                      <TableSelectionCell
+                        type="checkbox"
+                        checked={id ? selectedIds.has(id) : false}
+                        aria-label={`Select ${subject}`}
+                        className={styles.colSelect}
+                        // Keep row activation (which opens the body panel) from firing too.
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          if (id) {
+                            toggleSelected(id);
                           }
                         }}
-                      >
-                        <TableSelectionCell
-                          type="checkbox"
-                          checked={id ? selectedIds.has(id) : false}
-                          aria-label={`Select ${subject}`}
-                          className={styles.colSelect}
-                          // Keep row activation (which opens the body panel) from firing too.
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            if (id) {
-                              toggleSelected(id);
-                            }
-                          }}
-                          onKeyDown={(event) => event.stopPropagation()}
-                        />
-                        <TableCell className={styles.cell}>
-                          {formatReceivedDate(email.message.receivedDateTime)}
-                        </TableCell>
-                        <TableCell>
-                          <span className={styles.subjectCell}>
-                            <span className={styles.subjectText}>{subject}</span>
-                            {email.needsReview && (
-                              <Badge
-                                className={styles.reviewBadge}
-                                appearance="filled"
-                                color="warning"
-                                size="small"
-                              >
-                                needs review
-                              </Badge>
-                            )}
-                          </span>
-                        </TableCell>
-                        <TableCell className={styles.cell}>{email.customer}</TableCell>
-                        <TableCell className={styles.cell}>{email.project}</TableCell>
-                        <TableCell className={styles.cell}>{typeLabel(email.type)}</TableCell>
-                        <TableCell className={styles.cell}>
-                          <span className={styles.actionsCell}>
+                        onKeyDown={(event) => event.stopPropagation()}
+                      />
+                      <TableCell className={styles.cell}>
+                        {formatReceivedDate(email.message.receivedDateTime)}
+                      </TableCell>
+                      <TableCell>
+                        <span className={styles.subjectCell}>
+                          <span className={styles.subjectText}>{subject}</span>
+                          {email.needsReview && (
+                            <Badge
+                              className={styles.reviewBadge}
+                              appearance="filled"
+                              color="warning"
+                              size="small"
+                            >
+                              needs review
+                            </Badge>
+                          )}
+                        </span>
+                      </TableCell>
+                      <TableCell className={styles.cell}>{email.customer}</TableCell>
+                      <TableCell className={styles.cell}>{email.project}</TableCell>
+                      <TableCell className={styles.cell}>{typeLabel(email.type)}</TableCell>
+                      <TableCell className={styles.cell}>
+                        <span className={styles.actionsCell}>
+                          <Button
+                            size="small"
+                            appearance="subtle"
+                            icon={<Delete20Regular />}
+                            aria-label={`Delete ${subject}`}
+                            // Keep row activation (which opens the body panel) from firing too.
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              openDeleteRow(email);
+                            }}
+                            onKeyDown={(event) => event.stopPropagation()}
+                          />
+                          {email.projectIsUnresolvedGuid && (
                             <Button
                               size="small"
                               appearance="subtle"
-                              icon={<Delete20Regular />}
-                              aria-label={`Delete ${subject}`}
-                              // Keep row activation (which opens the body panel) from firing too.
+                              icon={<TagSearch20Regular />}
+                              aria-label="Resolve project GUID"
                               onClick={(event) => {
                                 event.stopPropagation();
-                                openDeleteRow(email);
+                                openResolve(email.project, email.customer);
                               }}
                               onKeyDown={(event) => event.stopPropagation()}
                             />
-                            {email.projectIsUnresolvedGuid && (
-                              <Button
-                                size="small"
-                                appearance="subtle"
-                                icon={<TagSearch20Regular />}
-                                aria-label="Resolve project GUID"
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  openResolve(email.project, email.customer);
-                                }}
-                                onKeyDown={(event) => event.stopPropagation()}
-                              />
-                            )}
-                          </span>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </>
-          ))}
+                          )}
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </>
+        )}
       </div>
 
       <InlineDrawer

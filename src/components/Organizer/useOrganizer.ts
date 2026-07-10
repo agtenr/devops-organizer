@@ -20,6 +20,12 @@ import {
  * Facet model (see `plans/39/plan.md`): each facet's options reflect the *other* active facet but
  * not itself, so selecting one narrows the other's options/counts while staying mutually consistent.
  */
+/**
+ * The full data/selection shape the Organizer consumes. Derived from the hook so the type stays in
+ * lock-step with it; used to type the `useData` injection seam on `Organizer` (test/e2e harness).
+ */
+export type OrganizerData = ReturnType<typeof useOrganizer>;
+
 export function useOrganizer() {
   const { status, error, folderName, categorized, resolveProjectGuid, deleteEmails } =
     useCategorizedMail();
