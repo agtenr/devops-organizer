@@ -36,3 +36,6 @@ Cold review re-litigates human-directed mid-PR changes as scope creep. On story 
 ## 2026-07-10T07:41:28Z
 Wire the Playwright E2E suite into CI so browser tests don't rot silently between stories. During story 46, two pre-existing e2e tests were found broken by earlier stories (harness columns rowheader flip from story 43's selection checkbox; smoke test's hello-world heading removed by story 30's auth gate) — both undetected because nobody runs `npm run test:e2e` between stories. Root cause is "e2e not wired into CI," which is CI/infra outside .claude/ and recorded as undecided greenfield in CLAUDE.md. Raised by lesson 46-coder-20260710T065653Z.
 
+## 2026-07-10T07:41:39Z
+Reconcile .gitignore line 25 vs. the categorization suite's fixture needs. testing.md previously claimed committed fixtures are what the tests import, but .gitignore excludes the fixture JSON by privacy design, so a fresh clone can't run the categorization suite. The human chose keep-local (privacy-first), and this cycle applied that to the testing.md WORDING only. The durable fix — a local fixture-generation step (or a CI equivalent) so a fresh clone can produce the gitignored fixtures and run the suite — is a product-file + tooling concern outside .claude/, needing a human to build the generation path. Raised by lesson 44-reviewer-20260709T143844Z.
+
