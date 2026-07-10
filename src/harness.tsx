@@ -43,6 +43,7 @@ createRoot(document.getElementById('root')!).render(
         emails={emails}
         allEmails={emails}
         resolveProjectGuid={() => Promise.resolve()}
+        deleteEmails={() => Promise.resolve()}
       />
     </FluentProvider>
   </StrictMode>,

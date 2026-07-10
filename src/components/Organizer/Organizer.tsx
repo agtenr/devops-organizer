@@ -36,6 +36,7 @@ export function Organizer() {
     categorized,
     filtered,
     resolveProjectGuid,
+    deleteEmails,
     selectedCustomer,
     selectCustomer,
     projectOptions,
@@ -72,6 +73,7 @@ export function Organizer() {
             emails={filtered}
             allEmails={categorized}
             resolveProjectGuid={resolveProjectGuid}
+            deleteEmails={deleteEmails}
           />
         </div>
       </div>
