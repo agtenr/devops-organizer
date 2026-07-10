@@ -21,9 +21,12 @@
     (not `use`-prefixed), colocated in the component's folder — e.g. `facetFilters.ts` next to
     `SidebarFilters.tsx`, `emailFormatters.ts` next to `EmailList.tsx`. Do **not** stuff such
     helpers into the `use*` file. (Human rulings, stories 39 and 40.)
-  - **Placement:** keep these helpers colocated in the component's own folder — not a generic
-    `src/utils/`, and not `src/services/` (reserved for the categorization business logic, see
-    `categorization-domain.md`).
+  - **Placement:** keep these **pure, colocated helpers** in the component's own folder — not a
+    generic `src/utils/`, and not `src/services/`. `src/services/` is the **service layer**
+    generally — the I/O services (`services/graph`, `services/mail`, `services/projectMap`, …)
+    **and** the centralized categorization business logic (see `categorization-domain.md`). The
+    rule here is only that a component's pure derivation/formatting helper belongs in that
+    component's folder, **not** in `services/`; it does **not** forbid non-categorization services.
 - The mapping/categorization business logic is **centralized in a service** (see
   `categorization-domain.md`) — components never re-implement it.
 - **Concrete tree (settled in story 29 scaffold — grow it as features land):**
@@ -57,6 +60,12 @@
 - **Hoist reusable data hooks up front.** A data hook with a foreseeable future consumer belongs
   in the shared `src/hooks/` location from the start, not colocated and moved later — if you know
   data needs to be reused, hoist it as soon as reuse is foreseeable. (Human corrections, story 38.)
+- **A cross-cutting UI concern has a single owner.** Loading/error handling (and similar
+  cross-cutting states) is owned in **one place** — the parent/container — with children rendered
+  **success-only**: the child receives already-loaded data and does not carry its own
+  loading/error branches. Leaving a child's now-unreachable loading/error branches in place "to
+  minimize the diff" is a **smell, not a simplification** — remove the dead/duplicate branches
+  rather than keeping two owners. (Human correction, story 46.)
 
 ## UI layout invariants
 - Top navigation bar is **fixed to the top** of the page (does not scroll with the content). It
@@ -74,6 +83,11 @@
 ## Conventions
 - **ESLint + Prettier**: ESLint (typescript-eslint + react-hooks rules) for correctness,
   Prettier for formatting.
+  - **Derived state is computed during render, not synced via an effect.** The `react-hooks`
+    config here enforces **`react-hooks/set-state-in-effect`** ("avoid calling `setState()`
+    directly within an effect"). Compute values derived from props/state **during render**
+    (e.g. via `useMemo`) rather than mirroring them into state with `useEffect` + `setState` —
+    the effect+setState state-syncing pattern trips this rule and fails lint. (Story 43.)
 - **Deterministic, reproducible installs & runtime**:
   - Every dependency in `package.json` is pinned to an **exact version** — no `^`, `~`, or
     `*` ranges. This is enforced by `.npmrc` (`save-exact=true`); add packages with

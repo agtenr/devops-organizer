@@ -37,11 +37,10 @@ Judgment criteria never block on their own; they are recorded as advice for the 
 
 | # | Criterion | How to check |
 |---|-----------|--------------|
-| O1 | **Title present and non-trivial** | Title exists and is more than a placeholder ("test", "fix", "tbd", a single word). |
+| O1 | **Title present and non-trivial** | Title exists and is not a **placeholder**. Key on placeholder **tokens/intent** — e.g. "test", "fix", "tbd", "asdf", or an empty/gibberish stub — **not** on word count alone. A short but **semantically clear** title (e.g. "Filters") **passes**; only titles that convey no real intent fail. |
 | O2 | **At least one acceptance criterion exists** | The story body or AC field contains ≥1 concrete acceptance criterion. |
 | O3 | **Intent is stated** | A user-story form ("As a … I want … so that …") *or* a clear problem/goal statement. The "As a…" form is **not** forced rigidly. |
 | O4 | **No unresolved placeholders** | No `TODO`, `???`, or `TBD` (case-insensitive) anywhere in the body or ACs. |
-| O5 | **Dependencies/blockers are named or explicitly "none"** | A dependency counts as *named* only when expressed as the structured **Predecessor** work-item link the automated dependency gate reads — a prose mention or a generic "Related" link alone does **not** satisfy it. Otherwise the story must explicitly declare there are none. Silence is a miss. |
 
 ## Judgment criteria (advisory — surfaced as comments, never a hard fail)
 
@@ -51,3 +50,4 @@ Judgment criteria never block on their own; they are recorded as advice for the 
 | J2 | **Single-sized, not an epic in disguise** | The story is one deliverable, not a bundle of features that should be split. |
 | J3 | **Internally coherent** | Title, intent, and ACs agree with one another — no contradictions. |
 | J4 | **Enough context for a planner** | A planner can act on the *what* without guessing; the *how* is explicitly the planner's job, not the story's. |
+| J5 | **Dependencies/blockers are made explicit** | The story ideally names its dependencies/blockers or explicitly declares there are **none**. This is a **recommendation, surfaced as advice** — silence is a **soft note, not a decline**: a well-scoped story is **not** declined solely for lacking an explicit "no dependencies" line. (A real cross-story dependency is still enforced separately by the **automated predecessor-dependency gate**, which reads the structured **Predecessor** work-item link — a prose mention or generic "Related" link does not satisfy that gate; this rubric criterion does not change that mechanism.) |

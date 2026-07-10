@@ -42,6 +42,12 @@
 - Assuming an interactive login where a silent token acquisition suffices (and vice versa).
 
 ## Scope staging
+> **Keep this log in lockstep with the code.** Any feature that **introduces or changes a
+> Microsoft Graph scope** must update **both** this "Scope staging" log **and** the
+> invariants/posture wording above in the **same change/PR that ships the code**. The scope
+> record and the code must never drift — a scope added without a matching entry here (or vice
+> versa) is an incomplete change. (Story 42 reviewer, story 43 planner.)
+
 - **Sign-in (story 30):** at the auth-setup stage sign-in requested only the implicit OIDC scopes
   (`openid`/`profile`) — enough to read the display name from the ID token — with no Graph client
   and no mail scope (least privilege for what sign-in alone needed).
