@@ -1,11 +1,13 @@
 import { test, expect } from '@playwright/test';
 
 /**
- * Real-browser regression coverage for `EmailList`. The app itself is auth-gated (MSAL), so this
- * drives the component in isolation via `/harness.html` (a dev/test-only entry that mounts `EmailList`
- * with mock data). jsdom component tests assert DOM/behaviour but have no layout engine, so
- * layout/visibility defects (an inline drawer that opens at ~0 width, a wrapping badge, evenly-split
- * columns) only surface here — these assertions pin the fixes for AB#40.
+ * Real-browser regression coverage for the app layout. The app itself is auth-gated (MSAL), so this
+ * drives the real `Organizer` layout (tabs + sidebar + `EmailList`) via `/harness.html` — a dev/test
+ * entry that mounts it with mock data through the `useData` seam (and `?state=loading` for the loading
+ * branch). jsdom component tests assert DOM/behaviour but have no layout engine, so layout/visibility
+ * defects (an inline drawer at ~0 width, a wrapping badge, evenly-split columns — AB#40; and the
+ * only-the-list-scrolls, full-height preview, single-line filters, loading gate — AB#46) only surface
+ * here.
  */
 
 const width = async (locator: import('@playwright/test').Locator) => {
@@ -16,7 +18,8 @@ const width = async (locator: import('@playwright/test').Locator) => {
 test('columns are not evenly split — Subject is the widest', async ({ page }) => {
   await page.goto('/harness.html');
 
-  const date = await width(page.getByRole('columnheader', { name: 'Date' }));
+  // Fluent's Table marks the first data column as a rowheader (not columnheader) for grid semantics.
+  const date = await width(page.getByRole('rowheader', { name: 'Date' }));
   const subject = await width(page.getByRole('columnheader', { name: 'Subject' }));
   const type = await width(page.getByRole('columnheader', { name: 'Type' }));
 
@@ -59,4 +62,57 @@ test('the panel swaps its body when another row is clicked, then closes', async 
 
   await page.getByRole('button', { name: 'Close' }).click();
   await expect(page.getByRole('button', { name: 'Close' })).toBeHidden();
+});
+
+test('the preview panel spans the full height of the content region', async ({ page }) => {
+  await page.goto('/harness.html');
+
+  await page.getByRole('row', { name: /Build failed on main/ }).click();
+  await expect(page.getByRole('button', { name: 'Close' })).toBeVisible();
+
+  const viewport = page.viewportSize()!;
+  const box = await page.locator('.fui-InlineDrawer').boundingBox();
+  // Tall (fills the fixed content area) and flush to the bottom of the viewport — no scrolling to see it.
+  expect(box!.height).toBeGreaterThan(viewport.height * 0.8);
+  expect(box!.y + box!.height).toBeGreaterThan(viewport.height - 4);
+});
+
+test('only the e-mail list scrolls — the page itself does not', async ({ page }) => {
+  await page.goto('/harness.html');
+
+  const list = page.getByTestId('email-scroll-region');
+  const [scrollH, clientH] = await list.evaluate((el) => [el.scrollHeight, el.clientHeight]);
+  // With the filler rows the list overflows its fixed region, so it is itself scrollable.
+  expect(scrollH).toBeGreaterThan(clientH);
+
+  await list.evaluate((el) => el.scrollTo(0, el.scrollHeight));
+  const listScrollTop = await list.evaluate((el) => el.scrollTop);
+  const pageScrollTop = await page.evaluate(() => window.scrollY);
+  expect(listScrollTop).toBeGreaterThan(0); // the list actually scrolled
+  expect(pageScrollTop).toBe(0); // the page/frame did not
+});
+
+test('a long filter option stays on one line, left-aligned, at 12px', async ({ page }) => {
+  await page.goto('/harness.html');
+
+  const option = page.getByRole('button', { name: /Alpha-very-long-project-name/ });
+  const value = option.locator('span').filter({ hasText: 'Alpha-very-long-project-name' });
+
+  const optionBox = await option.boundingBox();
+  const valueBox = await value.boundingBox();
+  // Single line: a wrapped 2-line option is ~2x taller; one line stays well under 40px.
+  expect(optionBox!.height).toBeLessThan(40);
+  // Left-aligned: the value starts near the option's left edge, not centered.
+  expect(valueBox!.x - optionBox!.x).toBeLessThan(24);
+  // Smaller 12px value font (vs the 14px group titles).
+  const fontSize = await value.evaluate((el) => getComputedStyle(el).fontSize);
+  expect(fontSize).toBe('12px');
+});
+
+test('while loading, only a spinner shows — no tabs or filters', async ({ page }) => {
+  await page.goto('/harness.html?state=loading');
+
+  await expect(page.getByText(/Loading mail from "DevOps"/)).toBeVisible();
+  await expect(page.getByRole('tablist', { name: 'Organizations' })).toHaveCount(0);
+  await expect(page.getByRole('complementary', { name: 'Filters' })).toHaveCount(0);
 });

@@ -1,12 +1,22 @@
-import { makeStyles, tokens } from '@fluentui/react-components';
+import { Spinner, Text, makeStyles, tokens } from '@fluentui/react-components';
 import { CustomerTabs } from '../CustomerTabs/CustomerTabs';
 import { SidebarFilters } from '../SidebarFilters/SidebarFilters';
 import { EmailList } from '../EmailList/EmailList';
-import { useOrganizer } from './useOrganizer';
+import { useOrganizer, type OrganizerData } from './useOrganizer';
 
 const useStyles = makeStyles({
-  // Sidebar (fixed-ish width) on the left, the view filling the rest.
+  // Fills the app shell below the top bar; a column so the tab strip sits above the scrolling body.
+  root: {
+    flexGrow: 1,
+    minHeight: 0,
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  // Sidebar (fixed width) on the left, the view filling the rest. Fills the remaining height so the
+  // list view (EmailList) owns the only scroll region.
   body: {
+    flexGrow: 1,
+    minHeight: 0,
     display: 'flex',
     alignItems: 'stretch',
     gap: tokens.spacingHorizontalL,
@@ -14,20 +24,45 @@ const useStyles = makeStyles({
   sidebar: {
     flexShrink: 0,
     width: '240px',
+    // A long facet list scrolls within the sidebar rather than growing the frame (settled OQ4).
+    overflowY: 'auto',
   },
   view: {
     flexGrow: 1,
     minWidth: 0,
+    display: 'flex',
+  },
+  // Loading/error fill the region and center their content (during load: only header + spinner).
+  status: {
+    flexGrow: 1,
+    minHeight: 0,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  error: {
+    color: tokens.colorPaletteRedForeground1,
+    fontFamily: tokens.fontFamilyMonospace,
   },
 });
+
+export interface OrganizerProps {
+  /** Data source; defaults to the real `useOrganizer`. Overridden only by the test/e2e harness. */
+  useData?: () => OrganizerData;
+}
 
 /**
  * Permanent container between the top bar and the e-mail view. It owns the three-filter selection
  * (organization tab + project/type facets, via `useOrganizer`), feeds the tab strip and the sidebar
  * the full/faceted sets so their counters reflect availability, and feeds the composed filtered set
- * to the center list view (`EmailList`), which owns only its own body-panel selection.
+ * to the center list view (`EmailList`).
+ *
+ * It also owns the load lifecycle UI (story 46): while mail is loading it renders **only** a spinner,
+ * and on failure **only** the error — the tabs, filters, and list mount solely on success, so the
+ * confusing `All (0)`/`None` flash is gone. The `useData` seam lets a harness drive this real layout
+ * with mock data (`.claude/rules/testing.md`); production passes nothing.
  */
-export function Organizer() {
+export function Organizer({ useData = useOrganizer }: OrganizerProps = {}) {
   const styles = useStyles();
   const {
     status,
@@ -45,10 +80,32 @@ export function Organizer() {
     typeOptions,
     selectedTypeKeys,
     onToggleType,
-  } = useOrganizer();
+  } = useData();
+
+  if (status === 'loading') {
+    return (
+      <div className={styles.root}>
+        <div className={styles.status}>
+          <Spinner label={`Loading mail from "${folderName}"…`} />
+        </div>
+      </div>
+    );
+  }
+
+  if (status === 'error') {
+    return (
+      <div className={styles.root}>
+        <div className={styles.status}>
+          <Text as="p" className={styles.error}>
+            Failed to load mail: {error}
+          </Text>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <>
+    <div className={styles.root}>
       <CustomerTabs
         emails={categorized}
         selectedCustomer={selectedCustomer}
@@ -67,9 +124,6 @@ export function Organizer() {
         </div>
         <div className={styles.view}>
           <EmailList
-            status={status}
-            error={error}
-            folderName={folderName}
             emails={filtered}
             allEmails={categorized}
             resolveProjectGuid={resolveProjectGuid}
@@ -77,6 +131,6 @@ export function Organizer() {
           />
         </div>
       </div>
-    </>
+    </div>
   );
 }

@@ -18,7 +18,8 @@ void msalInstance.initialize().then(() => {
   root.render(
     <StrictMode>
       <MsalProvider instance={msalInstance}>
-        <FluentProvider theme={webLightTheme}>
+        {/* Full height so the app shell can fill the viewport (only the e-mail list scrolls — story 46). */}
+        <FluentProvider theme={webLightTheme} style={{ height: '100%' }}>
           <App />
         </FluentProvider>
       </MsalProvider>

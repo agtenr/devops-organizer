@@ -3,11 +3,10 @@ import { useTopBar } from './useTopBar';
 
 const useStyles = makeStyles({
   root: {
-    // Sticky (not fixed) so the bar stays put while content scrolls without leaving the flow, so
-    // content below needs no manual top-offset (see `.claude/rules/frontend-architecture.md`).
-    position: 'sticky',
-    top: 0,
-    zIndex: 1,
+    // Fixed top band: a non-shrinking flex child of the app shell (which owns the fixed full-height
+    // frame), so the bar stays put while only the e-mail list scrolls (story 46; see
+    // `.claude/rules/frontend-architecture.md`).
+    flexShrink: 0,
     // Three-zone grid so the title is centered independent of the right group's width: an empty
     // 1fr spacer (column 1), the title (column 2, auto), and the user group (column 3, 1fr).
     display: 'grid',
