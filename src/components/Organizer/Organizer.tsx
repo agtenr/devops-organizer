@@ -1,4 +1,11 @@
-import { Spinner, Text, makeStyles, tokens } from '@fluentui/react-components';
+import {
+  MessageBar,
+  MessageBarBody,
+  Spinner,
+  Text,
+  makeStyles,
+  tokens,
+} from '@fluentui/react-components';
 import { CustomerTabs } from '../CustomerTabs/CustomerTabs';
 import { SidebarFilters } from '../SidebarFilters/SidebarFilters';
 import { EmailList } from '../EmailList/EmailList';
@@ -59,8 +66,10 @@ export interface OrganizerProps {
  *
  * It also owns the load lifecycle UI (story 46): while mail is loading it renders **only** a spinner,
  * and on failure **only** the error — the tabs, filters, and list mount solely on success, so the
- * confusing `All (0)`/`None` flash is gone. The `useData` seam lets a harness drive this real layout
- * with mock data (`.claude/rules/testing.md`); production passes nothing.
+ * confusing `All (0)`/`None` flash is gone. In the same vein it owns the **empty-corpus** state
+ * (story 48): when the folder holds no e-mails it renders **only** a warning message, so no empty
+ * tabs/filters are shown. The `useData` seam lets a harness drive this real layout with mock data
+ * (`.claude/rules/testing.md`); production passes nothing.
  */
 export function Organizer({ useData = useOrganizer }: OrganizerProps = {}) {
   const styles = useStyles();
@@ -99,6 +108,20 @@ export function Organizer({ useData = useOrganizer }: OrganizerProps = {}) {
           <Text as="p" className={styles.error}>
             Failed to load mail: {error}
           </Text>
+        </div>
+      </div>
+    );
+  }
+
+  if (categorized.length === 0) {
+    return (
+      <div className={styles.root}>
+        <div className={styles.status}>
+          <MessageBar intent="warning">
+            <MessageBarBody>
+              No e-mails found in "{folderName}". There is nothing to display.
+            </MessageBarBody>
+          </MessageBar>
         </div>
       </div>
     );
