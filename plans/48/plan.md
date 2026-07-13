@@ -143,19 +143,19 @@ Nothing else changes: `useOrganizer`, `useCategorizedMail`, `EmailList`, `Custom
 
 ## Assumptions & open questions
 
-- **OQ1 — Warning message component.** Recommend a Fluent **`MessageBar intent="warning"`**
-  (`MessageBarBody`) — it is the design-system component for a warning message and reads
-  distinctly as a warning **or** a plain centered `Text` in the existing `styles.status` frame,
-  matching how the loading (`Spinner` label) and error (`Text`) states are rendered for visual
-  consistency? Reply **MessageBar** or **Text**.
-- **OQ2 — Test altitude: jsdom only, or also a Playwright E2E.** Recommend **jsdom component test
-  only** — the acceptance is element presence/absence, which jsdom asserts reliably (unlike the
-  story-46 visual scroll/height checks), and adding an E2E would require extending the harness
-  with a `?state=empty` path **or** a second harness E2E via the harness `?state=empty` addition
-  so the empty message is also verified in a real browser? Reply **jsdom** or **E2E**.
-- **OQ3 — Message wording.** Recommend `No e-mails found in "<folder>". There is nothing to
-  display.` (names the folder, mirroring the loading label) **or** a folder-agnostic
-  `No e-mails to display.`? Reply **with-folder** or **generic**.
+No open questions remain — all three were resolved by the reviewer at plan review (PR #32), each
+in favor of the recommended option. They are recorded here as settled decisions, folded into the
+plan body above:
+
+- **OQ1 — Warning message component → `MessageBar` (resolved).** Use a Fluent
+  `MessageBar intent="warning"` + `MessageBarBody` (over a plain `Text`) — the design-system
+  component for a warning message. Reflected in *Implementation approach* and Task 1.
+- **OQ2 — Test altitude → jsdom only (resolved).** A jsdom component test on `Organizer`, no
+  Playwright E2E — the acceptance is element presence/absence. Reflected in *Testing
+  recommendations* and Task 2.
+- **OQ3 — Message wording → with-folder (resolved).** Use `No e-mails found in "<folder>". There
+  is nothing to display.`, naming the folder (mirroring the loading label). Reflected in
+  *Implementation approach*.
 
 ## Files/areas affected
 
