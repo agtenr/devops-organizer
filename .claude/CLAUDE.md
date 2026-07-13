@@ -46,13 +46,17 @@ e.g. `source .claude/aind.env` (copy `aind.env.sample`, keep the PAT out of git)
   (max ~100 emails). See `@rules/frontend-architecture.md`.
 - **Branch naming:** `type/id-slug` tied to the ADO story ID —
   e.g. `feature/123-customer-tabs`, `fix/130-counter-bug`. Integration branch is `main`.
-- **Build / run / test commands:** see the skills in `.claude/skills/`
-  (`build`, `run-app`, `test`, `lint`, `e2e`) — commands are defined in `package.json`
+- **Build / run / test / deploy commands:** see the skills in `.claude/skills/`
+  (`build`, `run-app`, `test`, `lint`, `e2e`, `deploy`) — commands are defined in `package.json`
   and verified against the scaffolded toolchain (story 29).
 
-### Open prerequisites / TODOs (greenfield)
-- **Deployment:** local-only for now (`npm run dev` / local build). No hosting target and
-  no CI/CD pipeline decided yet — revisit if the app is ever published.
-- **CI/CD:** none configured yet.
+### Deployment
+- **Target:** **Azure Static Web Apps**. The production bundle (`dist/`) is published with the
+  **SWA CLI** (`swa`, installed) — see the `deploy` skill. App/output locations are pinned in
+  `swa-cli.config.json` (`appLocation: "."`, `outputLocation: "dist"`).
+- **Auth:** the Azure **deployment token**, stored as `SWA_DEPLOYMENT_TOKEN` in the gitignored
+  `.claude/aind.env` (never committed or printed) — passed via `swa deploy --deployment-token`.
+  Not an interactive `az login`.
+- **CI/CD:** none configured yet — deploys are run manually via the `deploy` skill.
 - Toolchain drafts were reconciled against the real codebase via **`/aind:onboard`**
   (2026-07-08); re-run it after major structural changes.
