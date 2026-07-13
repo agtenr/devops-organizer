@@ -84,4 +84,13 @@ describe('Organizer — load lifecycle gate', () => {
     expect(screen.getByRole('table', { name: 'E-mails' })).toBeInTheDocument();
     expect(screen.queryByText(/Loading mail from/)).not.toBeInTheDocument();
   });
+
+  it('shows only a warning message when the corpus is empty — no tabs, filters, or list', () => {
+    renderOrganizer({ status: 'success', categorized: [] });
+
+    expect(screen.getByText(/nothing to display/i)).toBeInTheDocument();
+    expect(screen.queryByRole('tablist', { name: 'Organizations' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('complementary', { name: 'Filters' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('table', { name: 'E-mails' })).not.toBeInTheDocument();
+  });
 });
