@@ -37,6 +37,13 @@
   warnings. Once more component tests exist, factor this into a shared test render helper.
   (This complements — does not replace — testing the categorization service directly as
   pure logic.)
+  - **Layout-aware Fluent v9 components need jsdom API polyfills in `src/setupTests.ts`.**
+    jsdom implements no layout/observer APIs, so a Fluent v9 component that observes layout
+    crashes on mount (e.g. `MessageBar` via `useMessageBarReflow` throws
+    `ResizeObserver is not a constructor`). The fix is a no-op polyfill added **once** in
+    `src/setupTests.ts` — extend that shared setup (it already stubs `ResizeObserver`;
+    add `matchMedia`/`IntersectionObserver` there too as new components need them) rather
+    than working around the crash per test. (Story 48.)
 
 ## UI / end-to-end testing
 - **Playwright** is **set up** (no longer aspirational). Config is `playwright.config.ts`;
