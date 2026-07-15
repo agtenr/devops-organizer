@@ -3,6 +3,8 @@
   "copyFiles": [
     ".claude/aind.env",
     ".claude/settings.local.json",
-    ".env"
+    ".env",
+    "src/services/categorization/__fixtures__",
+    "design/demo-messages"
   ]
 }
