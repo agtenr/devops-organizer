@@ -64,6 +64,31 @@ test('the panel swaps its body when another row is clicked, then closes', async 
   await expect(page.getByRole('button', { name: 'Close' })).toBeHidden();
 });
 
+test('the preview panel can be resized by dragging its handle', async ({ page }) => {
+  // This test does the same open-the-drawer preamble as the others plus a multi-step drag; give it
+  // headroom so it isn't tripped by the one-time cold Vite dep-optimization the first wave blocks on.
+  test.slow();
+  await page.goto('/harness.html');
+
+  await page.getByRole('row', { name: /Build failed on main/ }).click();
+  const drawer = page.locator('.fui-InlineDrawer');
+  await expect(page.getByRole('button', { name: 'Close' })).toBeVisible();
+
+  const before = await width(drawer);
+
+  // The drawer is docked right, so dragging the handle LEFT widens it. Pointer capture on the handle
+  // means the moves are tracked even as the cursor leaves the 6px bar (story 55).
+  const handle = page.getByRole('separator', { name: 'Resize e-mail preview' });
+  const box = await handle.boundingBox();
+  await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box!.x - 200, box!.y + box!.height / 2, { steps: 10 });
+  await page.mouse.up();
+
+  const after = await width(drawer);
+  expect(after).toBeGreaterThan(before + 100);
+});
+
 test('the preview panel spans the full height of the content region', async ({ page }) => {
   await page.goto('/harness.html');
 
