@@ -29,8 +29,8 @@ Concretely, for each active sidebar facet the app shows a chip like `Project: Al
   - **The subject search query is not a chip.** It already has its own built-in clear (dismiss)
     button on the `SearchBox`; it is a search, not a facet.
   - **No persistence / URL-sync of the selection.** Selection stays in-memory React state as today.
-  - **The organization (customer) tab is treated as out of scope for chips** — see open question OQ1;
-    this is *raised for sign-off*, not silently dropped.
+  - **The organization (customer) tab is out of scope for chips** — ratified at plan review
+    (OQ1 resolved, option A): chips are scoped to the sidebar Project/Type facets only.
 
 ## AC coverage
 
@@ -183,13 +183,13 @@ updates automatically — but every mock of it, i.e. the harness, must supply th
 
 ## Assumptions & open questions
 
-- **OQ1 — Should the active organization (customer) tab also appear as a removable chip, or should
-  chips be scoped to the sidebar Project/Type facets only?** I scoped chips to **Project/Type**
-  (recommended): the AC's own examples are `Project:`/`Type:`, and the org tab is a distinct
-  top-level mechanism that always holds a value and resets to **"All"** rather than being "removed"
-  to nothing — a chip with an `X` maps awkwardly onto it. **Reply A** to keep chips scoped to
-  Project/Type (my choice), **or B** to also render the active non-"All" organization as a removable
-  chip (removing it → reset the tab to "All").
+_No open questions remain._
+
+- **OQ1 (RESOLVED — option A, plan review) — chip scope.** Ratified: the removable chips are scoped
+  to the sidebar **Project/Type** facets only; the active organization (customer) tab is **not**
+  rendered as a chip. Rationale: the AC's own examples are `Project:`/`Type:`, and the org tab is a
+  distinct top-level mechanism that always holds a value and resets to "All" rather than being
+  removed to nothing. (Recorded for living-doc history; no further action.)
 
 ## Considerations
 
