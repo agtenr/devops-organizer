@@ -32,7 +32,7 @@ no longer exists.
 | AC | Status | Where |
 |---|---|---|
 | As an end-user I can resize the e-mail preview panel | covered | Task 1 (resize handle + controlled width) |
-| When I delete an e-mail whose panel is open, the preview closes (incl. deleting the last e-mail); "also when switching filters" | narrowed | Task 2 covers the **delete** case (incl. last e-mail); the **"switching filters"** sub-clause is deliberately **not** implemented because it reverses ratified story-40 behaviour → **OQ1** |
+| When I delete an e-mail whose panel is open, the preview closes (incl. deleting the last e-mail); "also when switching filters" | covered (per ratified interpretation) | Task 2 covers the **delete** case (incl. last e-mail). The **"switching filters"** sub-clause is interpreted as **not** reversing story-40's persist-across-filter behaviour — **ratified by the reviewer (OQ1 → Option A)**. |
 
 ## Implementation approach
 Both changes are confined to the `EmailList` component folder; no service, hook-hoisting, or
@@ -87,23 +87,21 @@ and its locked test at `useEmailList.test.ts:67` are preserved).
 3. **Tests** *(rule: `.claude/rules/testing.md`)* — see Testing recommendations.
 
 ## Assumptions & open questions
-- **OQ1 — the "(also when switching filters)" clause of AC2.** Story 40 ratified that the preview
-  **keeps showing** an e-mail even after a filter change removes it from the list (documented at
-  `useEmailList.ts:63` and locked by the test at `useEmailList.test.ts:67`). AC2's parenthetical
-  reads literally as "also close on filter switch", which would reverse that. This plan implements
-  **Option A**: close only when the e-mail is **deleted** (removed from the corpus), preserving the
-  story-40 persist-across-filter behaviour — because the story's narrative is entirely about the
-  *delete* bug. **Option B** would additionally close the preview whenever a filter change removes
-  the previewed row (checking the filtered `emails` instead of `allEmails`), reversing story 40 and
-  updating that test. Which is intended — **A** (recommended; delete-only, keeps story 40) **or**
-  **B** (also close on filter switch)? Reply A or B.
-- **OQ2 — width persistence.** Width is in-memory and resets on reload (recommended — matches the
-  story's "resize", adds nothing). Alternatively persist the last width to `localStorage` so it
-  survives reloads. In-memory (**A**) **or** localStorage (**B**)? Reply A or B.
-- **OQ3 — keyboard resizing of the handle.** The handle is a pointer/drag target only. For full
-  keyboard accessibility it could also handle Arrow keys (step the width) with
-  `aria-valuenow/min/max`. Pointer-only (**A**, recommended — simplest, satisfies the AC) **or**
-  add keyboard resize (**B**, better a11y)? Reply A or B.
+_All three open questions were ratified by the reviewer at plan review (each answered **A** — the
+recommended option). They are recorded here as settled decisions; no open questions remain._
+
+- **OQ1 — "(also when switching filters)" clause of AC2 → RESOLVED: Option A.** Story 40 ratified
+  that the preview **keeps showing** an e-mail even after a filter change removes it from the list
+  (documented at `useEmailList.ts:63`, locked by the test at `useEmailList.test.ts:67`). The
+  reviewer confirmed **Option A**: close the preview only when the e-mail is **deleted** (removed
+  from the corpus), **preserving** the story-40 persist-across-filter behaviour. The literal
+  "also close on filter switch" reading (Option B) is **not** implemented — story 40 stands and its
+  test is untouched.
+- **OQ2 — width persistence → RESOLVED: Option A.** The reviewer confirmed the width stays in
+  **in-memory** React state and resets on reload; no `localStorage` persistence is added.
+- **OQ3 — keyboard resizing of the handle → RESOLVED: Option A.** The reviewer confirmed the handle
+  is **pointer/drag only**; no Arrow-key resizing / `aria-valuenow` stepping is added (the handle
+  still carries `role="separator"` + `aria-orientation` + `aria-label`).
 
 ## Considerations
 - **jsdom cannot verify the resize visually** (no layout engine) — per `.claude/rules/testing.md`
