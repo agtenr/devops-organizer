@@ -390,6 +390,70 @@ describe('EmailList — subject tooltip (AC2)', () => {
   });
 });
 
+describe('EmailList — subject search (story 56)', () => {
+  // The visual acceptance — the search box sits above the list on the SAME HEIGHT as the Delete
+  // button — is layout, so it is asserted in the Playwright E2E (`e2e/harness.spec.ts`); jsdom has
+  // no layout engine. Here we lock the behavioral wiring: typing filters the rendered rows.
+  const three = () => [
+    email({ message: { id: 'a1', subject: 'Alpha one' } }),
+    email({ message: { id: 'a2', subject: 'Alpha two' } }),
+    email({ message: { id: 'b1', subject: 'Beta one' } }),
+  ];
+
+  const searchInput = () => screen.getByLabelText('Search e-mails by subject');
+
+  it('filters the rendered rows to those whose subject contains the query', () => {
+    renderList({ emails: three() });
+
+    // All three rows before searching (header row + 3 body rows).
+    expect(screen.getAllByRole('row')).toHaveLength(4);
+
+    fireEvent.change(searchInput(), { target: { value: 'alpha' } });
+
+    expect(screen.getByRole('row', { name: /Alpha one/ })).toBeInTheDocument();
+    expect(screen.getByRole('row', { name: /Alpha two/ })).toBeInTheDocument();
+    expect(screen.queryByRole('row', { name: /Beta one/ })).not.toBeInTheDocument();
+  });
+
+  it('restores the full list when the query is cleared', () => {
+    renderList({ emails: three() });
+
+    fireEvent.change(searchInput(), { target: { value: 'alpha' } });
+    expect(screen.queryByRole('row', { name: /Beta one/ })).not.toBeInTheDocument();
+
+    fireEvent.change(searchInput(), { target: { value: '' } });
+    expect(screen.getByRole('row', { name: /Beta one/ })).toBeInTheDocument();
+    expect(screen.getAllByRole('row')).toHaveLength(4);
+  });
+
+  it('keeps the search box and Delete button and shows a no-match message when nothing matches', () => {
+    renderList({ emails: three() });
+
+    fireEvent.change(searchInput(), { target: { value: 'zzz-nope' } });
+
+    expect(screen.getByText(/No e-mails match your search/)).toBeInTheDocument();
+    // The user is never trapped: the box (to clear) and the Delete button remain present.
+    expect(searchInput()).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument();
+    // No body rows are rendered (only the message).
+    expect(screen.queryByRole('row')).not.toBeInTheDocument();
+  });
+
+  it('scopes select-all and bulk delete to the matched subset only', async () => {
+    const deleteEmails = vi.fn(() => Promise.resolve());
+    renderList({ emails: three(), deleteEmails });
+
+    fireEvent.change(searchInput(), { target: { value: 'alpha' } });
+
+    // Select-all now covers only the two matched rows.
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select all e-mails' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete (2)' }));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Yes' }));
+
+    await waitFor(() => expect(deleteEmails).toHaveBeenCalledWith(['a1', 'a2']));
+  });
+});
+
 describe('EmailList — row-click vs. selection stay separate (DataGrid, no selectionMode)', () => {
   it('opens the body panel on row click without toggling that row selection', () => {
     renderList({

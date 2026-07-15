@@ -14,6 +14,7 @@ import {
   DrawerHeader,
   DrawerHeaderTitle,
   InlineDrawer,
+  SearchBox,
   Text,
   Tooltip,
   createTableColumn,
@@ -62,12 +63,20 @@ const useStyles = makeStyles({
     paddingBlock: tokens.spacingVerticalM,
     paddingInline: tokens.spacingHorizontalL,
   },
-  // Bulk-action bar above the list; the Delete button enables once 2+ rows are selected.
+  // Bar above the list: the subject search box on the left, the bulk Delete button on the right,
+  // sharing one row (same height). The Delete button enables once 2+ rows are selected.
   toolbar: {
     display: 'flex',
-    justifyContent: 'flex-end',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: tokens.spacingHorizontalM,
     marginBlockEnd: tokens.spacingVerticalS,
     minHeight: '32px',
+  },
+  // Keep the search box a sensible fixed-ish width rather than stretching across the whole toolbar.
+  searchBox: {
+    width: '280px',
+    maxWidth: '50%',
   },
   empty: {
     color: tokens.colorNeutralForeground3,
@@ -183,6 +192,9 @@ export interface EmailListProps {
 export function EmailList({ emails, allEmails, resolveProjectGuid, deleteEmails }: EmailListProps) {
   const styles = useStyles();
   const {
+    visibleEmails,
+    searchQuery,
+    setSearchQuery,
     selectedEmail,
     isPanelOpen,
     openEmail,
@@ -202,10 +214,11 @@ export function EmailList({ emails, allEmails, resolveProjectGuid, deleteEmails 
   } = useEmailList(emails, allEmails);
   const { width: panelWidth, handleProps } = useResizablePanel();
 
-  // The ids of the currently-rendered rows — the scope of the header select-all checkbox.
+  // The ids of the currently-rendered (filtered + searched) rows — the scope of the header
+  // select-all checkbox.
   const visibleIds = useMemo(
-    () => emails.map((email) => email.message.id).filter((id): id is string => Boolean(id)),
-    [emails],
+    () => visibleEmails.map((email) => email.message.id).filter((id): id is string => Boolean(id)),
+    [visibleEmails],
   );
   const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.has(id));
   const headerChecked: boolean | 'mixed' = allVisibleSelected
@@ -347,12 +360,22 @@ export function EmailList({ emails, allEmails, resolveProjectGuid, deleteEmails 
       {/* data-testid marks the single scroll region so the E2E layout test can assert only it scrolls. */}
       <div className={styles.main} data-testid="email-scroll-region">
         {emails.length === 0 ? (
+          // Nothing in this tab/facet combo — nothing to search, so no toolbar/search box (D3).
           <Text as="p" className={styles.empty}>
             No e-mails to show.
           </Text>
         ) : (
           <>
             <div className={styles.toolbar}>
+              <SearchBox
+                className={styles.searchBox}
+                placeholder="Search by subject"
+                aria-label="Search e-mails by subject"
+                // Controlled: typing and the built-in clear (dismiss) button both flow through here.
+                // No debounce — the corpus is bounded and filtering is synchronous (story 56).
+                value={searchQuery}
+                onChange={(_event, data) => setSearchQuery(data.value)}
+              />
               <Button
                 appearance="primary"
                 icon={<Delete20Regular />}
@@ -363,69 +386,77 @@ export function EmailList({ emails, allEmails, resolveProjectGuid, deleteEmails 
                 Delete{selectedCount >= 2 ? ` (${selectedCount})` : ''}
               </Button>
             </div>
-            <DataGrid
-              aria-label="E-mails"
-              size="small"
-              className={styles.grid}
-              items={emails}
-              columns={columns}
-              getRowId={(email) => email.message.id ?? ''}
-              resizableColumns
-              // autoFitColumns re-fits every column to the container on each render, which shrinks
-              // them below their ideal widths and immediately undoes a manual drag; disabling it lets
-              // resizes stick and keeps Date at its compact default (the grid overflows → main scrolls).
-              resizableColumnsOptions={{ autoFitColumns: false }}
-              columnSizingOptions={columnSizingOptions}
-            >
-              <DataGridHeader>
-                <DataGridRow>
-                  {({ renderHeaderCell }) => (
-                    <DataGridHeaderCell>{renderHeaderCell()}</DataGridHeaderCell>
-                  )}
-                </DataGridRow>
-              </DataGridHeader>
-              <DataGridBody<CategorizedEmail>>
-                {({ item, rowId }) => {
-                  const id = item.message.id;
-                  const subject = item.message.subject ?? '(no subject)';
-                  const open = () => {
-                    if (id) {
-                      openEmail(id);
-                    }
-                  };
-                  return (
-                    <DataGridRow<CategorizedEmail>
-                      key={rowId}
-                      className={styles.row}
-                      tabIndex={0}
-                      aria-label={subject}
-                      onClick={open}
-                      onKeyDown={(event: KeyboardEvent<HTMLElement>) => {
-                        if (event.key === 'Enter' || event.key === ' ') {
-                          event.preventDefault();
-                          open();
-                        }
-                      }}
-                    >
-                      {({ columnId, renderCell }) => (
-                        <DataGridCell
-                          // Cells holding interactive controls trap Tab inside until Escape (`group`);
-                          // plain data cells stay a single Tab stop (`cell`).
-                          focusMode={
-                            columnId === COLUMN_ID.select || columnId === COLUMN_ID.actions
-                              ? 'group'
-                              : 'cell'
+            {visibleEmails.length === 0 ? (
+              // The combo has e-mails but none match the search — keep the toolbar (so the box can be
+              // cleared) and show a distinct empty message instead of the grid.
+              <Text as="p" className={styles.empty}>
+                No e-mails match your search.
+              </Text>
+            ) : (
+              <DataGrid
+                aria-label="E-mails"
+                size="small"
+                className={styles.grid}
+                items={visibleEmails}
+                columns={columns}
+                getRowId={(email) => email.message.id ?? ''}
+                resizableColumns
+                // autoFitColumns re-fits every column to the container on each render, which shrinks
+                // them below their ideal widths and immediately undoes a manual drag; disabling it lets
+                // resizes stick and keeps Date at its compact default (the grid overflows → main scrolls).
+                resizableColumnsOptions={{ autoFitColumns: false }}
+                columnSizingOptions={columnSizingOptions}
+              >
+                <DataGridHeader>
+                  <DataGridRow>
+                    {({ renderHeaderCell }) => (
+                      <DataGridHeaderCell>{renderHeaderCell()}</DataGridHeaderCell>
+                    )}
+                  </DataGridRow>
+                </DataGridHeader>
+                <DataGridBody<CategorizedEmail>>
+                  {({ item, rowId }) => {
+                    const id = item.message.id;
+                    const subject = item.message.subject ?? '(no subject)';
+                    const open = () => {
+                      if (id) {
+                        openEmail(id);
+                      }
+                    };
+                    return (
+                      <DataGridRow<CategorizedEmail>
+                        key={rowId}
+                        className={styles.row}
+                        tabIndex={0}
+                        aria-label={subject}
+                        onClick={open}
+                        onKeyDown={(event: KeyboardEvent<HTMLElement>) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            open();
                           }
-                          className={ELLIPSIS_COLUMNS.has(columnId) ? styles.cell : undefined}
-                        >
-                          {renderCell(item)}
-                        </DataGridCell>
-                      )}
-                    </DataGridRow>
-                  );
-                }}
-              </DataGridBody>
-            </DataGrid>
+                        }}
+                      >
+                        {({ columnId, renderCell }) => (
+                          <DataGridCell
+                            // Cells holding interactive controls trap Tab inside until Escape (`group`);
+                            // plain data cells stay a single Tab stop (`cell`).
+                            focusMode={
+                              columnId === COLUMN_ID.select || columnId === COLUMN_ID.actions
+                                ? 'group'
+                                : 'cell'
+                            }
+                            className={ELLIPSIS_COLUMNS.has(columnId) ? styles.cell : undefined}
+                          >
+                            {renderCell(item)}
+                          </DataGridCell>
+                        )}
+                      </DataGridRow>
+                    );
+                  }}
+                </DataGridBody>
+              </DataGrid>
+            )}
           </>
         )}
       </div>

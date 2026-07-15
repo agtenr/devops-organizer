@@ -47,7 +47,9 @@ test('a data column is resizable — dragging its handle widens it (AC1)', async
   expect(after).toBeGreaterThan(before + 40);
 });
 
-test('hovering a truncated subject reveals the full subject in a tooltip (AC2)', async ({ page }) => {
+test('hovering a truncated subject reveals the full subject in a tooltip (AC2)', async ({
+  page,
+}) => {
   await page.goto('/harness.html');
 
   const full = 'Build failed on main for a rather long subject line that keeps going and going';
@@ -181,4 +183,46 @@ test('while loading, only a spinner shows — no tabs or filters', async ({ page
   await expect(page.getByText(/Loading mail from "DevOps"/)).toBeVisible();
   await expect(page.getByRole('tablist', { name: 'Organizations' })).toHaveCount(0);
   await expect(page.getByRole('complementary', { name: 'Filters' })).toHaveCount(0);
+});
+
+test('the subject search box sits above the list on the same height as the Delete button (AB#56)', async ({
+  page,
+}) => {
+  await page.goto('/harness.html');
+
+  const search = page.getByLabel('Search e-mails by subject');
+  const del = page.getByRole('button', { name: 'Delete', exact: true });
+  await expect(search).toBeVisible();
+  await expect(del).toBeVisible();
+
+  const searchBox = (await search.boundingBox())!;
+  const delBox = (await del.boundingBox())!;
+  // Same row: their vertical centers line up (a stacked layout would differ by a row height, ~30px+).
+  const searchCenterY = searchBox.y + searchBox.height / 2;
+  const delCenterY = delBox.y + delBox.height / 2;
+  expect(Math.abs(searchCenterY - delCenterY)).toBeLessThan(12);
+  // The box is above the first list row, not below it.
+  const firstRow = (await page.getByRole('row', { name: /PR review requested/ }).boundingBox())!;
+  expect(searchBox.y).toBeLessThan(firstRow.y);
+});
+
+test('typing in the search box filters the list by subject, and clearing restores it (AB#56)', async ({
+  page,
+}) => {
+  await page.goto('/harness.html');
+
+  const search = page.getByLabel('Search e-mails by subject');
+  const prRow = page.getByRole('row', { name: /PR review requested/ });
+  const buildRow = page.getByRole('row', { name: /Build failed on main/ });
+
+  // Both present before searching.
+  await expect(prRow).toBeVisible();
+  await expect(buildRow).toBeVisible();
+
+  await search.fill('PR review');
+  await expect(prRow).toBeVisible();
+  await expect(buildRow).toHaveCount(0); // filtered out — subject does not contain "PR review"
+
+  await search.fill('');
+  await expect(buildRow).toBeVisible(); // restored once the query is cleared
 });

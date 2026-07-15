@@ -1,12 +1,14 @@
 import { useCallback, useMemo, useState } from 'react';
 import type { CategorizedEmail } from '../../models/categorization';
+import { filterBySubject } from './emailSearch';
 
 /**
  * `EmailList` view logic (see `.claude/rules/frontend-architecture.md` — logic lives in a colocated
  * hook, not JSX). Owns the **view-only** body-panel selection, the multi-select set for bulk delete,
- * and which delete-confirm dialog is open; the pure display formatters the rows/panel consume live
- * alongside in `emailFormatters.ts`. It never re-derives categorization tags — the engine's
- * `(customer, project, type)` triple is consumed verbatim (`.claude/rules/categorization-domain.md`).
+ * which delete-confirm dialog is open, and the **subject-search** query; the pure display formatters
+ * and the pure subject matcher the rows consume live alongside in `emailFormatters.ts` /
+ * `emailSearch.ts`. It never re-derives categorization tags — the engine's `(customer, project,
+ * type)` triple is consumed verbatim (`.claude/rules/categorization-domain.md`).
  */
 
 /** The GUID + organization of the row whose "Resolve project GUID" dialog is open. */
@@ -25,6 +27,12 @@ export interface DeleteTarget {
 
 /** The selection / panel / dialog state exposed to `EmailList`. */
 export interface UseEmailListResult {
+  /** The subset of `emails` whose subject matches the current search (the rows the list renders). */
+  visibleEmails: CategorizedEmail[];
+  /** The current subject-search query (controlled input value). */
+  searchQuery: string;
+  /** Set the subject-search query (from the toolbar `SearchBox`; blank clears the filter). */
+  setSearchQuery: (query: string) => void;
   /** The e-mail whose body the panel shows, or `null` when nothing has been opened yet. */
   selectedEmail: CategorizedEmail | null;
   /** Whether the body panel is open. */
@@ -78,17 +86,24 @@ export function useEmailList(
   const [resolveTarget, setResolveTarget] = useState<ResolveTarget | null>(null);
   const [rawSelectedIds, setRawSelectedIds] = useState<ReadonlySet<string>>(new Set());
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // The rows the list actually renders: the filtered `emails` narrowed by the subject search. Derived
+  // during render (no setState-in-effect), and it becomes the "visible" set for selection/select-all
+  // below, so bulk-delete can only ever act on rows the user currently sees. A blank query returns
+  // `emails` unchanged (same reference), so the memo is a no-op when nothing is searched.
+  const visibleEmails = useMemo(() => filterBySubject(emails, searchQuery), [emails, searchQuery]);
 
   const openEmail = useCallback(
     (id: string) => {
-      const found = emails.find((email) => email.message.id === id);
+      const found = visibleEmails.find((email) => email.message.id === id);
       if (!found) {
         return;
       }
       setSelectedEmail(found);
       setRawIsPanelOpen(true);
     },
-    [emails],
+    [visibleEmails],
   );
 
   const closePanel = useCallback(() => {
@@ -117,11 +132,15 @@ export function useEmailList(
   const selectedId = selectedEmail?.message.id;
   const isPanelOpen = rawIsPanelOpen && selectedId != null && allIds.has(selectedId);
 
-  // The ids currently visible in the (filtered) list — the ceiling for selection and select-all.
+  // The ids currently visible in the (filtered + searched) list — the ceiling for selection and
+  // select-all. Keyed off `visibleEmails`, so narrowing the search prunes now-hidden rows from the
+  // selection just as a tab/facet change does.
   const visibleIds = useMemo(
     () =>
-      new Set(emails.map((email) => email.message.id).filter((id): id is string => Boolean(id))),
-    [emails],
+      new Set(
+        visibleEmails.map((email) => email.message.id).filter((id): id is string => Boolean(id)),
+      ),
+    [visibleEmails],
   );
 
   // Derive the effective selection as the raw picks intersected with the currently-visible rows, so a
@@ -177,6 +196,9 @@ export function useEmailList(
   }, []);
 
   return {
+    visibleEmails,
+    searchQuery,
+    setSearchQuery,
     selectedEmail,
     isPanelOpen,
     openEmail,
