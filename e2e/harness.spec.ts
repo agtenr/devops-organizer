@@ -226,3 +226,37 @@ test('typing in the search box filters the list by subject, and clearing restore
   await search.fill('');
   await expect(buildRow).toBeVisible(); // restored once the query is cleared
 });
+
+test('a filter section collapses its options on click and re-expands, independently (AB#57)', async ({
+  page,
+}) => {
+  await page.goto('/harness.html');
+
+  const projectOption = page.getByRole('button', { name: /Alpha-very-long-project-name/ });
+  const typeOption = page.getByRole('button', { name: /Work item · Assigned/ });
+  // Expanded by default: both sections show their options.
+  await expect(projectOption).toBeVisible();
+  await expect(typeOption).toBeVisible();
+
+  // Collapsing Projects hides only its options; Types is independent and stays open.
+  await page.getByRole('button', { name: 'Projects' }).click();
+  await expect(projectOption).toBeHidden();
+  await expect(typeOption).toBeVisible();
+
+  // Clicking the header again re-expands Projects.
+  await page.getByRole('button', { name: 'Projects' }).click();
+  await expect(projectOption).toBeVisible();
+});
+
+test('the chevron sits to the left of each filter section title (AB#57)', async ({ page }) => {
+  await page.goto('/harness.html');
+
+  const header = page.getByRole('button', { name: 'Projects' });
+  const chevron = header.locator('.fui-AccordionHeader__expandIcon');
+  await expect(chevron).toBeVisible();
+
+  const chevronBox = await chevron.boundingBox();
+  const headerBox = await header.boundingBox();
+  // The expand icon starts at the header's left edge, ahead of the title text.
+  expect(chevronBox!.x).toBeLessThan(headerBox!.x + headerBox!.width / 2);
+});
