@@ -5,6 +5,12 @@
 - **React** (Fluent UI v9 is React-based) — no other UI framework.
 - **Fluent UI v9** (`@fluentui/react-components`) for all UI. Prefer its components,
   tokens, and `griffel` styling over hand-rolled CSS.
+  - **Prefer the first-class Fluent v9 component over retrofitting a lower-level primitive.**
+    For a UI capability that has a purpose-built Fluent v9 component (e.g. **DataGrid** for a
+    resizable/sortable grid), adopt **that** component rather than augmenting a lower-level
+    primitive (e.g. bolting features onto the primitive **Table**) — **even when** the idiomatic
+    component is the larger, higher-risk change. The "simplest / minimal-diff change" bias does
+    **not** override the idiomatic-component preference here. (Human ruling, story 54.)
 - Package manager: **npm**.
 
 ## Structure & key directories
@@ -79,8 +85,19 @@
   **first**; real values are ordered **alphabetically (case-insensitive)**; the
   uncategorized/fallback bucket is pinned **last** regardless of its letter. (Human ruling on tab
   order, story 38 — applies to both the tabs and the facet lists.)
+- **The e-mail preview stays open across a filter change.** When a filter change removes the
+  previewed row from the visible list, the preview **stays open** — switching filters does **not**
+  close the preview. Ratified in story 40 and pinned in code (`useEmailList.ts` +
+  `useEmailList.test.ts`); recorded here so a later story's acceptance criterion cannot silently
+  reverse it. (Ratified story 40; near-reversal caught in story 55.)
 
 ## Conventions
+- **Fluent v9 `DataGrid` `resizableColumns` auto-fits by default.** Enabling `resizableColumns`
+  defaults `resizableColumnsOptions.autoFitColumns` to **`true`**, which re-fits every column to
+  the container width on **each render** — this both **overrides per-column `idealWidth`** (a column
+  renders narrower than configured) **and immediately reverts a manual resize** (drag/keyboard
+  resizes don't stick). When columns need **fixed or persistent** widths, set
+  `resizableColumnsOptions={{ autoFitColumns: false }}`. (Story 54.)
 - **ESLint + Prettier**: ESLint (typescript-eslint + react-hooks rules) for correctness,
   Prettier for formatting.
   - **Derived state is computed during render, not synced via an effect.** The `react-hooks`
