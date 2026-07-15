@@ -192,6 +192,39 @@ describe('categorizeEmail — story 44 corrected types', () => {
   });
 });
 
+/**
+ * Story 53: two demo-corpus e-mails that previously fell through to `Other · Unknown` because no
+ * rule (and no taxonomy sub-type) existed for them, now pinned to their correct triple. Both resolve
+ * a friendly project name (`TCR.EquipmentCenter`) from the ADO URL, so neither is flagged for review.
+ */
+const STORY53_CASES = [
+  {
+    file: 'pr-approved-3094',
+    customer: 'tcr-group',
+    project: 'TCR.EquipmentCenter',
+    category: 'Pull request',
+    subType: 'Approved',
+  },
+  {
+    file: 'release-cancelled-eqlweb',
+    customer: 'tcr-group',
+    project: 'TCR.EquipmentCenter',
+    category: 'Release',
+    subType: 'Deployment cancelled',
+  },
+] as const;
+
+describe('categorizeEmail — story 53 extra types', () => {
+  it.each(STORY53_CASES)('$file → $customer / $project / $category · $subType', (c) => {
+    const result = categorizeEmail(loadFixture(c.file));
+    expect(result.customer).toBe(c.customer);
+    expect(result.project).toBe(c.project);
+    expect(result.type).toEqual({ category: c.category, subType: c.subType });
+    // Both resolve a friendly project name from the URL, so neither is flagged for review.
+    expect(result.needsReview).toBe(false);
+  });
+});
+
 /** Builds a minimal Graph message for the synthetic edge cases. */
 const message = (body: string, subject = '', contentType: 'html' | 'text' = 'text'): Message => ({
   subject,

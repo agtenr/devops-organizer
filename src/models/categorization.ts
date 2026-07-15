@@ -24,13 +24,15 @@ export type MessageType =
         | 'Updated'
         | 'Review requested'
         | 'Commented'
+        | 'Approved'
         | 'Completed'
         | 'Abandoned';
     }
   | { category: 'Build'; subType: 'Succeeded' | 'Failed' | 'Partially succeeded' | 'Cancelled' }
   | {
       category: 'Release';
-      subType: 'Approval pending' | 'Deployment succeeded' | 'Deployment failed';
+      subType:
+        'Approval pending' | 'Deployment succeeded' | 'Deployment failed' | 'Deployment cancelled';
     }
   | { category: 'Other'; subType: 'Access request' | 'Admin' | 'Unknown' };
 
