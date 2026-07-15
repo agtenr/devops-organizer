@@ -186,6 +186,12 @@ function classify(text: string): MessageType | null {
   if (text.includes('deployment failed')) {
     return { category: 'Release', subType: 'Deployment failed' };
   }
+  // Cancellation. The subject reads `[deployment cancelled]` (contiguous) while the body separates
+  // the words by the stage name (`deployment … cancelled`); the bounded window matches both without
+  // running away, and `cancell?ed` matches US "canceled" and UK "cancelled".
+  if (/deployment\b[\s\S]{0,40}cancell?ed/.test(text)) {
+    return { category: 'Release', subType: 'Deployment cancelled' };
+  }
 
   // 4. Pull request (only when the e-mail is about a pull request). "pushed new changes" is also a
   // gate trigger: that notification's visible text carries no literal "pull request" (its CTA reads
@@ -196,6 +202,11 @@ function classify(text: string): MessageType | null {
     }
     if (text.includes('abandoned the pull request')) {
       return { category: 'Pull request', subType: 'Abandoned' };
+    }
+    // The action reads "<reviewer> approved the changes"; key on the full phrase (not a bare
+    // "approved") so a reviewer merely listed as "Approved" on another PR e-mail cannot mis-fire.
+    if (includesAny(text, 'approved the changes', 'approved the pull request')) {
+      return { category: 'Pull request', subType: 'Approved' };
     }
     if (text.includes('added as a reviewer')) {
       return { category: 'Pull request', subType: 'Review requested' };
