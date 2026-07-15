@@ -13,183 +13,204 @@ rest). Three usability gaps remain:
 3. **The Date column is oversized** — it reserves `14%` of the table, far more than the
    fixed-length received-date text (e.g. `24 Apr 2020, 06:50`) needs.
 
-Outcome: the five data columns become **user-resizable**, the **Subject** cell shows the full
-subject in a **hover tooltip**, and the **Date** column defaults to a tight width that fits its
-fixed-length text.
+Outcome: the list migrates to Fluent v9 **`DataGrid`** (reviewer decision **O1-B**) with
+**`resizableColumns`**, the **Subject** cell shows the full subject in a **hover tooltip**, and the
+**Date** column defaults to a tight width that fits its fixed-length text.
+
+## Decisions already ratified at plan review
+- **O1-B — use `DataGrid` with `resizableColumns`** (not the primitive `Table` + sizing hook).
+- **O2-A — only the data columns are meant to be resizable**, selection + Actions kept fixed.
+  *Under `DataGrid` this is in tension with O1-B (see O6 below) — `resizableColumns` is global.*
+- **O4-A — tooltip on the Subject column only.**
+- **O5-A — keep the existing locale-based `formatReceivedDate` output**; only tighten the Date
+  column width.
 
 ## Keep it simple
-- **Non-goal: do not migrate the primitive `Table` to `DataGrid`.** Column resizing is added to
-  the existing `Table` via the Fluent v9 `useTableFeatures` + `useTableColumnSizing_unstable`
-  hooks, which layer sizing onto the current markup. A full `DataGrid` migration would rewrite the
-  selection model, row rendering, and row-click→drawer interaction (ratified in stories 40/43/46)
-  and put every existing test at risk — disproportionate to three column tweaks. (Threaded — see
-  *Assumptions & open questions* O1.)
-- **Non-goal: no persistence of resized widths.** Widths reset to their defaults on reload; the
-  story does not ask for persistence and the app has no width-storage layer. (Threaded — O3.)
-- **Non-goal: no tooltip on the non-subject columns.** AC2 names the Subject column only; the
-  Organization/Project/Type cells keep their plain ellipsis. (Threaded — O4.)
-- **Non-goal: no change to the date *format*.** The existing locale-based `formatReceivedDate`
-  output is unchanged; only the column's default *width* is tightened. (Threaded — O5.)
-- **Non-goal: the selection and Actions columns stay fixed-width and non-resizable.** Only the five
-  data columns (Date, Subject, Organization, Project, Type) get resize handles. (Threaded — O2.)
+- **Migrate to `DataGrid`, but keep the existing custom selection model — do not adopt
+  `DataGrid`'s built-in `selectionMode`.** When `selectionMode` is set, `DataGridRow` calls
+  `selection.toggleRow` on every row `onClick` (confirmed in
+  `@fluentui/react-table` `useDataGridRow`), which would both open the body drawer *and* toggle
+  selection on a single row click — breaking the ratified row-click→drawer UX (stories 40/46) and
+  the existing tests. Instead, `DataGrid` is used for layout + `resizableColumns` only; the proven
+  selection state in `useEmailList` (raw/effective `selectedIds`, `toggleSelected`,
+  `toggleSelectAll`) and the row-click→drawer handler are preserved verbatim, with the selection
+  checkbox rendered as an ordinary column cell (its click `stopPropagation`, exactly as today).
+- **Non-goal: no persistence of resized widths.** Widths reset to defaults on reload; the story
+  doesn't ask for it and there's no width-storage layer. (Open — O3.)
+- **Non-goal: no tooltip on the non-subject columns.** AC2 names Subject only (O4-A); the
+  Organization/Project/Type cells keep their plain ellipsis.
+- **Non-goal: no change to the date *format*** (O5-A) — only the Date column's default *width* is
+  tightened.
+- **Non-goal: no sorting, grouping, or virtualization.** `DataGrid` offers these; the story asks
+  for none, so they are not enabled.
 
 ## AC coverage
 | AC | Status | Where |
 |---|---|---|
-| Columns are resizable | covered | Task 2 (`useTableColumnSizing_unstable`), scoped to the 5 data columns per O2 |
-| Subjects have hover tooltips to view the full subject | covered | Task 3 (Fluent `Tooltip` on the subject cell) |
+| Columns are resizable | covered | Task 3 (`DataGrid resizableColumns` + `columnSizingOptions`); O2-A scope vs. global resize tracked in O6 |
+| Subjects have hover tooltips to view the full subject | covered | Task 3 (Fluent `Tooltip` on the subject cell, per O4-A) |
 | The date column fits the content correctly | covered | Task 2 (`columnSizingOptions` gives Date a tight `idealWidth`/`minWidth`) |
 
 ## Implementation approach
-Add Fluent UI v9 **column sizing** to the existing primitive `Table` and a **`Tooltip`** on the
-subject cell — no structural rewrite.
+Replace the primitive `Table` markup with `DataGrid` (`@fluentui/react-components`), driving it
+with column definitions and `resizableColumns`, while keeping the current selection logic and
+row-click behaviour.
 
-- **Column sizing (AC1 + AC3).** Use `useTableFeatures(..., [useTableColumnSizing_unstable({ columnSizingOptions })])`
-  from `@fluentui/react-components`. The hook returns `columnSizing_unstable` whose
-  `getTableProps()`, `getTableHeaderCellProps(columnId)`, and `getTableCellProps(columnId)` are
-  spread onto the `Table`, each `TableHeaderCell`, and each `TableCell` of the five data columns.
-  `getTableHeaderCellProps` injects the drag-to-resize handle (its `aside` slot) and sets the
-  column width; `getTableCellProps` sets the matching cell width. Per-column defaults
-  (`idealWidth`, `minWidth`) come from a `columnSizingOptions` map — this is also where the **Date**
-  column's tight default width lives, so AC1 and AC3 are satisfied by the same mechanism.
-  - The **selection** and **Actions** columns are *not* given sizing props — they keep their
-    existing fixed-width classes (`colSelect` 44px, `colActions` 96px) and stay non-resizable.
-  - The `tableLayout: 'fixed'` + percentage-width classes (`colDate`/`colOrg`/`colProject`/`colType`)
-    are removed; the sizing feature now owns those widths via inline style. The single-line
-    ellipsis `cell` class and the `subjectText`/`subjectCell` classes are kept. Preserve the
-    horizontal-scroll behaviour: the sum of column widths gives the table a natural min content
-    width, so `styles.main`'s `overflowX: 'auto'` still scrolls rather than crushing Subject.
-- **Subject tooltip (AC2).** Wrap the truncated subject `span` (`styles.subjectText`) in
-  `<Tooltip content={subject} relationship="label" withArrow>` from `@fluentui/react-components`.
-  The `needsReview` badge stays a sibling (outside the tooltip trigger) so only the subject text is
-  the hover target.
-- **Where the logic lives.** Per `frontend-architecture.md`, React logic stays in the colocated
-  hook. The `useTableFeatures`/`useTableColumnSizing_unstable` wiring goes into
-  **`useEmailList.ts`**, which already receives `emails`; it returns the `columnSizing` getters
-  alongside the existing selection/panel state. The static, React-free column config
-  (`columnSizingOptions` + the `createTableColumn` column definitions) goes into a new **pure
-  colocated helper** `emailColumns.ts` (mirrors the `emailFormatters.ts` / `facetFilters.ts`
-  precedent — pure derivation/config in its own file, not the `use*` file).
+- **DataGrid wiring (AC1 + AC3).**
+  `<DataGrid items={emails} columns={columns} getRowId={(e) => e.message.id ?? ''} resizableColumns columnSizingOptions={columnSizingOptions} size="small" aria-label="E-mails">`
+  with `DataGridHeader`/`DataGridRow` (header) and `DataGridBody`/`DataGridRow`/`DataGridCell`
+  (body). **No `selectionMode`** (see *Keep it simple*).
+  - `columnSizingOptions` holds per-column `idealWidth`/`minWidth`; the **Date** column is sized
+    tight to `24 Apr 2020, 06:50` (≈ `idealWidth: 140`, `minWidth: 120`) — this is AC3 — and
+    **Subject** gets the largest `idealWidth` so it stays the widest column (keeps the existing E2E
+    "Subject is the widest" invariant true).
+- **Column definitions.** Seven columns via `createTableColumn<CategorizedEmail>`:
+  `select`, `date`, `subject`, `organization`, `project`, `type`, `actions`. Each defines
+  `renderHeaderCell` and `renderCell`. Because these render functions return JSX and close over the
+  hook's handlers (`selectedIds`, `toggleSelected`, `toggleSelectAll`, `openResolve`,
+  `openDeleteRow`, `typeLabel`, `formatReceivedDate`), the `columns` array is built **inside
+  `EmailList.tsx`** (memoised with `useMemo`), not in the pure helper — rendering lives in the
+  `.tsx` (`frontend-architecture.md`). The pure, React-free `columnSizingOptions` + `COLUMN_ID`
+  constants live in a new colocated helper `emailColumns.ts`.
+- **Selection column (`select`).** `renderHeaderCell` returns the select-all `Checkbox`
+  (checked/mixed logic unchanged); `renderCell` returns the per-row `Checkbox`. Both keep the
+  `onClick`/`onKeyDown` `stopPropagation` so toggling selection never opens the drawer. The cell's
+  `focusMode="group"` (it holds an interactive control).
+- **Row behaviour.** In `DataGridBody`, each `DataGridRow` gets `onClick={() => openEmail(id)}`,
+  the Enter/Space `onKeyDown`, `tabIndex={0}`, `aria-label={subject}`, and `className={styles.row}`
+  — identical to today. With no `selectionMode`, `DataGridRow.onClick` does **not** toggle
+  selection, so clicking the row only opens the drawer.
+- **Subject cell (`subject`).** `renderCell` returns the existing `subjectCell` span with the
+  truncated `subjectText` span wrapped in `<Tooltip content={subject} relationship="label" withArrow>`
+  (O4-A). The `needsReview` badge stays a sibling outside the tooltip trigger.
+- **Actions cell (`actions`).** `renderCell` returns the existing delete + conditional
+  resolve-GUID icon buttons (handlers + `stopPropagation` unchanged); `focusMode="group"`.
+- **Body drawer, resolve dialog, confirm-delete dialog, and `useEmailList` selection/panel/dialog
+  state are unchanged** — only the table markup changes.
 
 ## Task breakdown
 1. **Add the column config helper.** Create `src/components/EmailList/emailColumns.ts` exporting:
-   - a `COLUMN_ID` constant object (`select`, `date`, `subject`, `organization`, `project`, `type`,
-     `actions`) as the single source of column ids;
-   - `emailColumns` — the `createTableColumn<CategorizedEmail>({ columnId })` definitions for the
-     five data columns (id only; cells are rendered in JSX, so no `renderCell` is needed);
-   - `columnSizingOptions: TableColumnSizingOptions` — per-column `idealWidth`/`minWidth`, with the
-     **Date** column sized tight to `24 Apr 2020, 06:50` (≈ `idealWidth: 140`, `minWidth: 120`) and
-     **Subject** given the largest `idealWidth` so it stays the widest column (keeps the existing
-     E2E "Subject is the widest" invariant true).
-   - *Rules:* `frontend-architecture.md` (pure colocated helper in the component folder, not
-     `services/`, not the `use*` file), `categorization-domain.md` (consumes tags verbatim; derives
-     nothing).
-2. **Wire column sizing into the hook.** Edit `src/components/EmailList/useEmailList.ts`: call
-   `useTableFeatures({ columns: emailColumns, items: emails }, [useTableColumnSizing_unstable({ columnSizingOptions })])`
-   and add `columnSizing` (the `columnSizing_unstable` value: `getTableProps`,
-   `getTableHeaderCellProps`, `getTableCellProps`) to `UseEmailListResult` and the returned object.
-   - *Rules:* `frontend-architecture.md` (logic in the hook, not JSX; the `use*` file holds real
-     React hook logic).
-3. **Apply sizing + tooltip in the view.** Edit `src/components/EmailList/EmailList.tsx`:
-   - spread `columnSizing.getTableProps()` onto `<Table>` (merging `styles.table`);
-   - spread `columnSizing.getTableHeaderCellProps(COLUMN_ID.x)` on the Date/Subject/Organization/
-     Project/Type `TableHeaderCell`s and `getTableCellProps(COLUMN_ID.x)` on the matching
-     `TableCell`s;
-   - wrap the subject text span in `<Tooltip content={subject} relationship="label" withArrow>`;
-   - drop the removed percentage width classes from `useStyles` (keep `colSelect`, `colActions`,
-     `cell`, `subjectCell`, `subjectText`, `reviewBadge`, and reconcile `styles.table`).
-   - *Rules:* `frontend-architecture.md` (Fluent v9 components/tokens; rendering only in the
-     `.tsx`), `categorization-domain.md` (tags consumed verbatim).
-4. **Update/extend unit tests.** Edit `src/components/EmailList/EmailList.test.tsx`: keep all
-   existing assertions green (headers, rows, selection, delete, resolve-GUID, body panel), and add
-   a test that the subject cell is wrapped by a tooltip trigger carrying the full subject as its
+   - `COLUMN_ID` — a constant object mapping `select`/`date`/`subject`/`organization`/`project`/
+     `type`/`actions` to their `TableColumnId` strings (single source of column ids);
+   - `columnSizingOptions: TableColumnSizingOptions` — per-column `idealWidth`/`minWidth`, Date
+     sized tight (≈140/120), Subject the widest, selection ≈44 and actions ≈96 as sensible fixed
+     defaults.
+   No JSX (pure, React-free helper). *Rules:* `frontend-architecture.md` (pure colocated helper in
+   the component folder, not `services/`, not the `use*` file), `categorization-domain.md`
+   (derives nothing; tags consumed verbatim).
+2. **Confirm/adjust the Date width target.** Verify ≈140px comfortably fits `formatReceivedDate`'s
+   output (locale `toLocaleString` with `year/month:short/day/2-digit hour/minute`) without
+   ellipsis at the default width; tune `idealWidth`/`minWidth` in `emailColumns.ts` if needed
+   (AC3, O5-A). *Rules:* `frontend-architecture.md`.
+3. **Migrate the view to `DataGrid`.** Rewrite the table in `src/components/EmailList/EmailList.tsx`:
+   build the memoised `columns` array (7 `createTableColumn` defs with `renderHeaderCell`/
+   `renderCell` as above); render `DataGrid`/`DataGridHeader`/`DataGridBody`/`DataGridRow`/
+   `DataGridCell`/`DataGridHeaderCell` with `resizableColumns` + `columnSizingOptions` +
+   `getRowId`; wrap the subject text in `Tooltip` (O4-A); set `focusMode="group"` on the selection
+   and actions cells; keep the toolbar (bulk Delete), empty state, drawer, and dialogs as-is;
+   reconcile `useStyles` (drop the `tableLayout: 'fixed'` percentage classes `colDate`/`colOrg`/
+   `colProject`/`colType`; keep `cell` ellipsis, `subjectCell`, `subjectText`, `reviewBadge`,
+   `row`, `actionsCell`, and the `main` horizontal-scroll region). *Rules:*
+   `frontend-architecture.md` (Fluent v9 components/tokens; rendering only in `.tsx`; logic stays
+   in the hook), `categorization-domain.md` (tags consumed verbatim).
+4. **Keep selection wiring in the hook.** In `src/components/EmailList/useEmailList.ts`, the
+   existing selection/panel/dialog state is unchanged; expose whatever the new `renderCell`
+   closures need (already returned). No `DataGrid` selection feature is used. *Rules:*
+   `frontend-architecture.md` (logic in the hook, not JSX).
+5. **Update/extend unit tests.** In `src/components/EmailList/EmailList.test.tsx`: keep all
+   existing assertions green, **adjusting only ARIA-role queries if `DataGrid` changes an element's
+   role vs. the primitive `Table`** (e.g. header cell `columnheader`/`rowheader`, row `row`); add a
+   test that the subject cell is wrapped by a tooltip trigger carrying the **full** subject as its
    content/accessible relationship. Do **not** assert hover-driven tooltip visibility or drag
-   resizing in jsdom (no layout engine — see Testing recommendations).
-   - *Rules:* `testing.md` (component tests render through `FluentProvider` + `webLightTheme`;
-     jsdom cannot verify visual/interactive acceptance).
-5. **Add real-browser E2E for the interactive/visual acceptance.** Edit `e2e/harness.spec.ts`
-   (reuses the existing `/harness.html` mock-auth seam and its long-subject sample row) to assert:
-   (a) dragging a data column's resize handle changes that column's rendered width; (b) hovering a
-   truncated subject surfaces a tooltip (`role="tooltip"`) showing the full subject; (c) the Date
-   column renders at its compact default width (narrower than Subject and roughly the date-text
-   width). Keep the existing harness tests green.
-   - *Rules:* `testing.md` (visual/layout/interactive acceptance verified in a real browser, not
-     jsdom alone).
+   resizing in jsdom. *Rules:* `testing.md` (render through `FluentProvider` + `webLightTheme`;
+   jsdom cannot verify visual/interactive acceptance).
+6. **Add real-browser E2E for the interactive/visual acceptance.** In `e2e/harness.spec.ts` (reuses
+   the `/harness.html` mock-auth seam and its long-subject sample row) assert: (a) dragging a data
+   column's resize handle changes that column's rendered width; (b) hovering a truncated subject
+   surfaces a `role="tooltip"` with the full subject; (c) the Date column renders at its compact
+   default width (narrower than Subject). **Update the existing harness tests if `DataGrid` changes
+   the header roles they query** (the current "Subject is the widest" test reads the Date header as
+   `rowheader`), keeping them green. *Rules:* `testing.md` (visual/layout/interactive acceptance in
+   a real browser, not jsdom alone).
 
 ## Testing recommendations
-- **Whether to test:** yes — the project has Vitest (`npm run test`) and Playwright
-  (`npm run test:e2e`) practices; use both, no new framework.
+- **Whether to test:** yes — Vitest (`npm run test`) and Playwright (`npm run test:e2e`) are both
+  set up; use both, no new framework.
 - **Altitude:**
-  - *Component (jsdom, Vitest):* regression-guard the existing `EmailList` behaviours and add the
-    tooltip-wiring assertion. jsdom has no layout engine, so it **cannot** verify resize dragging,
-    hover-tooltip visibility, or actual column widths — do not assert those here.
+  - *Component (jsdom, Vitest):* regression-guard the existing `EmailList` behaviours (headers,
+    rows, selection count, bulk/row delete, resolve-GUID, body panel) and add the tooltip-wiring
+    assertion. jsdom has no layout engine — do not assert resize dragging, hover-tooltip
+    visibility, or actual column widths here.
   - *E2E (Playwright, real browser):* the true acceptance for AC1 (resize drag changes width), AC2
-    (hover shows the full-subject tooltip), and AC3 (Date renders compact). Driven via the existing
-    `/harness.html` seam.
+    (hover shows the full-subject tooltip), AC3 (Date renders compact), via `/harness.html`.
 - **Must-cover list (beyond what the ACs already state):**
   - Subject tooltip content equals the **full** subject even when the visible cell is ellipsized →
     full text present in the tooltip, not the truncated text.
-  - A missing subject (`'(no subject)'`) still renders without error and its tooltip shows that
-    placeholder → no crash, no empty tooltip trigger.
-  - Resizing a data column does not fire the row-open drawer or a selection toggle → drawer stays
-    closed, selection unchanged after a drag.
+  - A missing subject (`'(no subject)'`) still renders and its tooltip shows that placeholder → no
+    crash, no empty tooltip trigger.
+  - Clicking the selection checkbox toggles selection **without** opening the body drawer; clicking
+    the row body opens the drawer **without** toggling selection → the two interactions stay
+    separate under `DataGrid` (this is the concrete regression the no-`selectionMode` choice
+    guards).
 - **Live verification:** the resize-drag and hover-tooltip acceptance is inherently interactive —
-  **needs the Playwright E2E (Task 5) to pass before merge** (this is the real-browser check
-  `testing.md` mandates; no separate manual step required if the E2E covers it).
+  **the Playwright E2E (Task 6) must pass before merge** (the real-browser check `testing.md`
+  mandates; no separate manual step if the E2E covers it).
 
 ## Considerations
-- **Performance:** `useTableFeatures` re-derives on each render over the bounded (≤ ~100) in-memory
-  set — negligible; no memoisation beyond what the hook already does is needed.
-- **Accessibility:** `useTableColumnSizing_unstable` provides keyboard-accessible resize handles;
-  `Tooltip relationship="label"` gives the subject an accessible name. The row keeps its
-  `aria-label={subject}`, so the accessible row name is unchanged.
-- **jsdom safety:** the sizing feature uses `ResizeObserver`, already stubbed in
+- **DataGrid role changes are expected.** Swapping the primitive `Table` for `DataGrid` can change
+  some ARIA roles the current tests query (header `rowheader` vs `columnheader`); Tasks 5–6 keep
+  the suites green by adjusting the queries, not by weakening assertions.
+- **Performance:** `DataGrid` re-derives over the bounded (≤ ~100) in-memory set; `columns` is
+  memoised. Negligible.
+- **Accessibility:** `resizableColumns` provides keyboard-accessible resize handles;
+  `Tooltip relationship="label"` gives the subject an accessible name; the row keeps
+  `aria-label={subject}`.
+- **jsdom safety:** `DataGrid`/column sizing uses `ResizeObserver`, already stubbed in
   `src/setupTests.ts`, so mounting `EmailList` in Vitest will not crash.
-- **`_unstable` API:** `useTableColumnSizing_unstable` is the current, documented Fluent v9 column-
-  sizing hook (the `_unstable` suffix is Fluent's convention for this feature, used in its own docs
-  and `DataGrid`); it is the intended API, not a private internal.
 
 ## Assumptions & open questions
-- **O1 — Resizing approach.** Add sizing to the existing primitive `Table` via
-  `useTableFeatures` + `useTableColumnSizing_unstable` (recommended — minimal diff, preserves the
-  ratified selection/row-click/drawer behaviour and all existing tests) **or** migrate the list to
-  `DataGrid` with `resizableColumns` (idiomatic for grids but rewrites selection + row interaction
-  and risks the story-40/43/46 behaviours)? Reply O1-A or O1-B.
-- **O2 — Which columns resize.** Make only the five data columns (Date, Subject, Organization,
-  Project, Type) resizable and keep the selection + Actions columns fixed-width (recommended —
-  those two are chrome, not data) **or** make every column resizable including selection/Actions?
-  Reply O2-A or O2-B.
-- **O3 — Persist resized widths.** Do not persist — widths reset to defaults on reload (recommended
-  — the story doesn't ask, and there's no width-storage layer) **or** persist widths across reloads
-  (e.g. `localStorage`)? Reply O3-A or O3-B.
-- **O4 — Tooltip scope.** Tooltip on the Subject column only, per AC2 (recommended) **or** also add
-  tooltips to the other truncatable cells (Organization/Project/Type)? Reply O4-A or O4-B.
-- **O5 — Date format.** Keep the existing locale-based `formatReceivedDate` output and only tighten
-  the column width (recommended — AC3 is about width, and the example string is illustrative of
-  length) **or** pin the format to the AC's exact `24 Apr 2020, 06:50` shape (fixed `en-GB`-style
-  formatting)? Reply O5-A or O5-B.
+- **O3 — Persist resized widths *(still open — no reviewer selection yet)*.** Do not persist —
+  widths reset to defaults on reload (recommended — the story doesn't ask, and there's no
+  width-storage layer) **or** persist widths across reloads (e.g. `localStorage`)? Reply O3-A or
+  O3-B. *(The plan proceeds on O3-A pending your call.)*
+- **O6 — `resizableColumns` is global, which conflicts with O2-A *(new — raised by the O1-B
+  decision)*.** Under `DataGrid`, `resizableColumns` enables resizing for **every** column, so the
+  selection and Actions columns will also carry resize handles — whereas O2-A asked to keep those
+  two fixed/non-resizable. `DataGrid` has no per-column resize opt-out. Which wins:
+  **O6-A (recommended)** — honour O1-B: keep `DataGrid`, accept that selection + Actions are
+  technically draggable but pin them to sensible fixed default widths in `columnSizingOptions`;
+  **or O6-B** — honour O2-A strictly: revert to the primitive `Table` + `useTableColumnSizing_unstable`
+  (the O1-A approach), the only way to make **only** the five data columns resizable while keeping
+  selection + Actions truly non-resizable? Reply O6-A or O6-B.
 
 ## Definition of done
-- [ ] The five data columns (Date, Subject, Organization, Project, Type) are **resizable** by
-      dragging their header handles (AC1), verified in the Playwright E2E.
-- [ ] The **Subject** cell shows the **full subject** in a hover tooltip (AC2), verified in the
-      Playwright E2E.
+- [ ] The list renders via Fluent v9 `DataGrid` with `resizableColumns`; data columns resize by
+      dragging their header handles (AC1, O1-B), verified in the Playwright E2E.
+- [ ] The **Subject** cell shows the **full subject** in a hover tooltip (AC2, O4-A), verified in
+      the Playwright E2E.
 - [ ] The **Date** column defaults to a **compact** width fitting `24 Apr 2020, 06:50`, narrower
-      than Subject (AC3), verified in the Playwright E2E.
-- [ ] Column-sizing wiring lives in `useEmailList.ts`; the pure column config lives in
-      `emailColumns.ts`; `EmailList.tsx` only renders (`frontend-architecture.md`).
+      than Subject (AC3, O5-A), verified in the Playwright E2E.
+- [ ] Clicking a row opens the body drawer and clicking the checkbox toggles selection, and the two
+      never trigger each other (ratified UX preserved under `DataGrid`; no `selectionMode`).
+- [ ] Column-sizing config lives in the pure `emailColumns.ts`; the memoised `columns` (with JSX
+      render functions) and rendering live in `EmailList.tsx`; selection/panel logic stays in
+      `useEmailList.ts` (`frontend-architecture.md`).
 - [ ] Categorization tags are consumed verbatim — nothing re-derived (`categorization-domain.md`).
-- [ ] All existing `EmailList` component tests and `harness.spec.ts` E2E tests still pass; the new
-      tooltip unit test and resize/tooltip/date-width E2E tests pass.
+- [ ] All existing `EmailList` component tests and `harness.spec.ts` E2E tests still pass (ARIA-role
+      queries updated for `DataGrid` where needed); the new tooltip unit test and the
+      resize/tooltip/compact-date E2E tests pass.
 - [ ] `npm run test`, `npm run test:e2e`, `npm run lint`, and `npm run build` are all clean.
 - [ ] New files (`emailColumns.ts`, any new test) are git-tracked and included in the PR
       (`testing.md` — green local tests don't prove a file shipped).
 
 ## Files/areas affected
-- `src/components/EmailList/emailColumns.ts` — **new** pure column config (ids, definitions,
+- `src/components/EmailList/emailColumns.ts` — **new** pure column config (`COLUMN_ID`,
   `columnSizingOptions`).
-- `src/components/EmailList/useEmailList.ts` — add column-sizing hook wiring + return the getters.
-- `src/components/EmailList/EmailList.tsx` — spread sizing props, add subject `Tooltip`, reconcile
-  styles.
-- `src/components/EmailList/EmailList.test.tsx` — keep existing green; add tooltip-wiring test.
-- `e2e/harness.spec.ts` — add resize / tooltip / compact-date real-browser tests.
+- `src/components/EmailList/EmailList.tsx` — migrate `Table` → `DataGrid`; build memoised `columns`
+  with `renderHeaderCell`/`renderCell`; add subject `Tooltip`; reconcile styles.
+- `src/components/EmailList/useEmailList.ts` — selection/panel state unchanged; keep exposing what
+  the render closures need.
+- `src/components/EmailList/EmailList.test.tsx` — keep green (adjust roles for `DataGrid`); add
+  tooltip-wiring test.
+- `e2e/harness.spec.ts` — add resize / tooltip / compact-date tests; adjust existing header-role
+  queries for `DataGrid`.
