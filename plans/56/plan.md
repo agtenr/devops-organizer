@@ -27,7 +27,7 @@ scope only):
   containment; rows keep their existing date order.
 - **No query persistence** (URL param, storage) and **no new component/folder** — the box lives in
   the existing `EmailList` toolbar. No new Graph scope, no auth change (front-end, in-memory only).
-- **Facet/tab counters are not re-scoped by the search** (see AC coverage + open question Q1).
+- **Facet/tab counters are not re-scoped by the search** (ratified decision D1).
 
 ## AC coverage
 The story carries one acceptance criterion; its description adds concrete requirements, mapped here
@@ -39,8 +39,8 @@ too so none is dropped.
 | Search box on the same height/row as the Delete button | covered | Task 3 (toolbar layout) + Task 5 (E2E) |
 | Typing filters the list: show all e-mails whose **subject contains** the string | covered | Tasks 1–2 (`filterBySubject` + wiring) |
 | No debounce (in-memory filtering) | covered | Task 2 (controlled state, synchronous derive) |
-| Search narrows only the displayed list, not tab/facet counters | narrowed | Q1 (open question — recommended reading of "the list of e-mails") |
-| Case-insensitive matching | narrowed | Q2 (open question — matcher default) |
+| Search narrows only the displayed list, not tab/facet counters | narrowed (ratified) | Decision D1 — reviewer chose A on PR #42 |
+| Case-insensitive matching | narrowed (ratified) | Decision D2 — reviewer chose A on PR #42 |
 
 ## Implementation approach
 Add the search as a concern of the **`EmailList` component** (the toolbar that already owns the
@@ -128,21 +128,19 @@ Ordered so the pure matcher (consumed by the hook) lands before its consumers.
    (UI-layout invariants exercised in the real shell).
 
 ## Assumptions & open questions
-- **Q1 — Search scope vs. counters.** The story says "the list of e-mails should be filtered." I
-  read that as **the center list only**, leaving the customer-tab and sidebar project/type counters
-  reflecting categorization availability (search is applied downstream of the facet composition, so
-  counters do not move as you type). Reply **A** = list only (recommended — matches "the list of
-  e-mails", keeps facet counters meaning "how many exist", and is the smaller change) **or** **B** =
-  the search should also narrow the tab/facet counters (would move the filter up into `useOrganizer`
-  as a fourth dimension). Reply A or B.
-- **Q2 — Case sensitivity.** Subject matching is **case-insensitive** (typing `build` matches
-  "Build failed"). Reply **A** = case-insensitive (recommended — expected search behavior) **or**
-  **B** = case-sensitive. Reply A or B.
-- **Q3 — Search box when the current tab/facet combo is empty.** When the selected tab/facets yield
-  **zero** e-mails (pre-search), there is nothing to search, so the toolbar (and search box) stays
-  hidden and only the existing "No e-mails to show." message renders; the box appears as soon as the
-  combo has at least one e-mail. Reply **A** = hide the box when the combo is empty (recommended —
-  nothing to search) **or** **B** = always show the search box. Reply A or B.
+All open questions were ratified by the reviewer on PR #42 (each answered **A** — the recommended
+option). No open questions remain; the decisions below are settled and baked into the plan above.
+
+- **D1 — Search scope vs. counters (ratified A).** Search filters **the center list only**, applied
+  **downstream** of the tab/facet composition — the customer-tab and sidebar project/type counters
+  keep reflecting categorization availability and do **not** move as you type. (Rejected: moving the
+  filter up into `useOrganizer` as a fourth dimension.)
+- **D2 — Case sensitivity (ratified A).** Subject matching is **case-insensitive** (typing `build`
+  matches "Build failed").
+- **D3 — Search box when the current tab/facet combo is empty (ratified A).** When the selected
+  tab/facets yield **zero** e-mails (pre-search) there is nothing to search, so the toolbar (and
+  search box) stays hidden and only the existing "No e-mails to show." message renders; the box
+  appears as soon as the combo has at least one e-mail.
 
 ## Considerations
 - **Selection interaction (FYI).** Because "visible" becomes the searched subset, selecting rows and
@@ -185,7 +183,7 @@ acceptance.
 - [ ] A search box renders above the e-mail list, on the same row/height as the bulk-delete button.
 - [ ] Typing filters the list to e-mails whose **subject contains** the typed text; clearing the box
       restores the current tab/facet view. No debounce (synchronous in-memory filtering).
-- [ ] Subject matching behaves per the resolved Q2 (default: case-insensitive substring).
+- [ ] Subject matching is case-insensitive substring containment (ratified decision D2).
 - [ ] A zero-match search keeps the search box (and Delete) visible and shows a "no match" message —
       the user is never trapped with no way to clear the query.
 - [ ] Bulk-delete / select-all operate only on the currently-visible (searched) rows.
