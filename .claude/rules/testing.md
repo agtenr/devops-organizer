@@ -67,11 +67,45 @@
   before it is called done; jsdom component tests alone are **insufficient** for such acceptance.
   (Stories 40 coder/reviewer.)
 
+## UI screenshots (committed visual evidence for review)
+- **A UI change ships with a committed Playwright screenshot of what was built.** When a change's
+  acceptance is **UI-facing** (new or changed layout, component, panel, styling, states such as
+  loading/empty), capture **at least one** screenshot of the implemented UI with Playwright and
+  **commit it** in the same PR. This makes the real-browser verification the section above already
+  requires into **durable review evidence** — a reviewer validates the look/layout from the PR
+  without checking out and running the app. Logic-only / non-UI changes (e.g. the categorization
+  service) need no screenshot.
+- **Screenshots MUST be taken through the mock-data harness seam — never the real signed-in app.**
+  Drive `/harness.html` (and `?state=…` for other states), the same **`useData` mock seam** the E2E
+  specs use (`e2e/harness.spec.ts`), so the shot renders the real `Organizer` shell with
+  **deterministic mock data**. This is **mandatory, not stylistic**: a committed screenshot is a
+  committed artifact, and the anonymisation rule above forbids **real mailbox content in any committed
+  artifact** — shooting the signed-in app would leak real DevOps-notification content into git. The
+  harness path is both **anonymised** (mock data only) and **reproducible** (stable data + fixed
+  viewport → the same pixels every run). Capture with `page.screenshot({ path })` (documentary
+  evidence) — **not** `toHaveScreenshot` visual-regression baselines, which add flaky pixel-diff
+  gating this rule does not want.
+- **Where they live: committed, joined on the work-item ID.** Save under
+  **`e2e/screenshots/<work-item-id>/<slug>.png`** — a **tracked** location (not the gitignored
+  `test-results/` / `playwright-report/`), joined on the work-item ID exactly as plans are
+  (`/plans/<work-item-id>/`). Name each shot for what it depicts (e.g. `list-with-preview.png`,
+  `loading-state.png`). Confirm they are **git-tracked** before marking done (see the untracked-file
+  trap below).
+- **The code PR references every screenshot.** The generated code PR description must **embed or link
+  each committed screenshot** (a relative repo path or an inlined image), grouped so the reviewer can
+  tie each shot to the acceptance criterion it evidences. A screenshot committed but not referenced
+  from the PR is an **incomplete** change — the reviewer must not have to go hunting for it. (Real
+  corpus content that appears in a shot is impossible when the harness seam is used as required above;
+  if a shot ever quotes corpus content, anonymise it like any other PR artifact.)
+
 ## What "done" looks like
 - A change to categorization behavior ships with new/updated unit tests, and the full
   Vitest suite passes (`npm run test`).
 - A change whose acceptance is **visual/layout/interactive** is verified in a **real browser**
   (Playwright E2E) — not by jsdom component tests alone, which cannot see layout or sizing.
+- **A UI change ships with a committed Playwright screenshot** taken through the mock-data harness
+  seam, saved under `e2e/screenshots/<work-item-id>/`, git-tracked, and **referenced from the code
+  PR** so the reviewer can validate the implementation visually (see "UI screenshots" above).
 - **A green local `npm run test` does not prove a required file shipped.** Vitest runs every test
   file **on disk** regardless of git tracking, so a new/required test (or source) file that was
   never `git add`ed can pass locally while being **absent from the PR**. Before marking done,
