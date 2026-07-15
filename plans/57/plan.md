@@ -21,10 +21,10 @@ surface and no new state to manage.
 - **No new custom hook / no controlled state.** Fluent's `Accordion` is used **uncontrolled**
   (`defaultOpenItems` seeds "expanded by default"); it owns its own open/closed state internally, so
   there is genuinely no React logic to extract into a `useSidebarFilters` hook. The component stays
-  purely presentational. (Surfaced as OQ1 — a reviewer who wants controlled state can say so.)
+  purely presentational. (Ratified — OQ1 resolved A.)
 - **No persistence of collapse state.** Collapse/expand is in-memory only and resets to
   *expanded* on reload — matching the ratified in-memory posture of the resizable-panel work
-  (`plans/55/plan.md`). No `localStorage`, no OneDrive, no URL state. (Surfaced as OQ2.)
+  (`plans/55/plan.md`). No `localStorage`, no OneDrive, no URL state. (Ratified — OQ2 resolved A.)
 - **No change to the facet data model or props.** `SidebarFiltersProps`, `facetFilters.ts`, and
   `Organizer`/`useOrganizer` are untouched — this is confined to how `SidebarFilters` lays out the
   groups it is already handed.
@@ -116,17 +116,14 @@ spacing tokens on the panel. No raw CSS.
 
 ## Assumptions & open questions
 
-- **OQ1 — Collapse state ownership.** Use Fluent's `Accordion` **uncontrolled** with
-  `defaultOpenItems` (recommended — the story needs only "expanded by default, click to
-  collapse", which the uncontrolled component does with zero extra state, keeping `SidebarFilters`
-  purely presentational and adding no hook) **or** introduce a controlled `useSidebarFilters` hook
-  owning `openItems` (only warranted if you foresee external control/persistence)? Reply A
-  (uncontrolled) or B (controlled hook).
-- **OQ2 — Persistence of collapse state.** Collapse/expand is **in-memory only and resets to
-  expanded on reload** (recommended — mirrors the ratified in-memory posture of the resizable panel,
-  `plans/55/plan.md`; the story says nothing about persistence) **or** should collapse state
-  **persist across reloads** (would require controlled state + storage, i.e. also picking OQ1-B)?
-  Reply A (no persistence) or B (persist).
+Both open questions are **resolved** — the reviewer ratified the recommended option in each case;
+the decisions are now baked into *Keep it simple* and the tasks above. None remain outstanding.
+
+- **OQ1 — Collapse state ownership → resolved A (uncontrolled).** Use Fluent's `Accordion`
+  **uncontrolled** with `defaultOpenItems`; no `useSidebarFilters` hook, `SidebarFilters` stays
+  purely presentational.
+- **OQ2 — Persistence of collapse state → resolved A (no persistence).** Collapse/expand is
+  in-memory only and resets to *expanded* on reload, matching `plans/55/plan.md`. No storage.
 
 ## Considerations
 
