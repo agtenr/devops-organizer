@@ -1,21 +1,26 @@
+import { useMemo } from 'react';
+import type { KeyboardEvent } from 'react';
 import {
   Badge,
   Button,
+  Checkbox,
+  DataGrid,
+  DataGridBody,
+  DataGridCell,
+  DataGridHeader,
+  DataGridHeaderCell,
+  DataGridRow,
   DrawerBody,
   DrawerHeader,
   DrawerHeaderTitle,
   InlineDrawer,
-  Table,
-  TableBody,
-  TableCell,
-  TableHeader,
-  TableHeaderCell,
-  TableRow,
-  TableSelectionCell,
   Text,
+  Tooltip,
+  createTableColumn,
   makeStyles,
   tokens,
 } from '@fluentui/react-components';
+import type { TableColumnDefinition, TableColumnId } from '@fluentui/react-components';
 import { Delete20Regular, TagSearch20Regular } from '@fluentui/react-icons';
 import type { Message } from '@microsoft/microsoft-graph-types';
 import type { CSSProperties } from 'react';
@@ -24,9 +29,19 @@ import { typeLabel } from '../SidebarFilters/facetFilters';
 import { ResolveProjectDialog } from '../ResolveProjectDialog/ResolveProjectDialog';
 import { deriveKnownProjectNames } from '../ResolveProjectDialog/knownProjects';
 import { ConfirmDeleteDialog } from '../ConfirmDeleteDialog/ConfirmDeleteDialog';
+import { COLUMN_ID, columnSizingOptions } from './emailColumns';
 import { formatReceivedDate, resolveBody } from './emailFormatters';
 import { useEmailList } from './useEmailList';
 import { useResizablePanel } from './useResizablePanel';
+
+// The single-line data columns whose cells ellipsize rather than wrap; the selection/subject/actions
+// cells own their own layout, so they are excluded.
+const ELLIPSIS_COLUMNS = new Set<TableColumnId>([
+  COLUMN_ID.date,
+  COLUMN_ID.organization,
+  COLUMN_ID.project,
+  COLUMN_ID.type,
+]);
 
 const useStyles = makeStyles({
   // List fills the view; the body drawer docks to the right of it (inline = non-blocking). Fills the
@@ -57,20 +72,14 @@ const useStyles = makeStyles({
   empty: {
     color: tokens.colorNeutralForeground3,
   },
-  // Fixed layout so columns take their assigned widths (Subject widest) rather than an even split.
-  // Percentage widths scale as the drawer opens/closes; the min-width makes the list scroll (main's
-  // overflowX) instead of collapsing Subject to nothing when the drawer narrows the view.
-  table: {
-    width: '100%',
-    minWidth: '880px',
-    tableLayout: 'fixed',
+  // DataGrid owns the column widths via `columnSizingOptions` (the `resizableColumns` feature sets
+  // explicit per-column widths); their sum gives the grid a natural min width, so `main`'s overflowX
+  // scrolls it rather than collapsing Subject when the drawer narrows the view. `fit-content` keeps
+  // the grid from stretching columns past those widths to fill a wide viewport.
+  grid: {
+    width: 'fit-content',
+    minWidth: '100%',
   },
-  colSelect: { width: '44px' },
-  colDate: { width: '14%' },
-  colOrg: { width: '14%' },
-  colProject: { width: '13%' },
-  colType: { width: '16%' },
-  colActions: { width: '96px' },
   // Row action icons sit on one line; the cell never opens the body drawer (handlers stopPropagation).
   actionsCell: {
     display: 'flex',
@@ -194,15 +203,144 @@ export function EmailList({ emails, allEmails, resolveProjectGuid, deleteEmails 
   const { width: panelWidth, handleProps } = useResizablePanel();
 
   // The ids of the currently-rendered rows — the scope of the header select-all checkbox.
-  const visibleIds = emails
-    .map((email) => email.message.id)
-    .filter((id): id is string => Boolean(id));
+  const visibleIds = useMemo(
+    () => emails.map((email) => email.message.id).filter((id): id is string => Boolean(id)),
+    [emails],
+  );
   const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.has(id));
   const headerChecked: boolean | 'mixed' = allVisibleSelected
     ? true
     : selectedCount > 0
       ? 'mixed'
       : false;
+
+  // The DataGrid column definitions. Rebuilt only when the selection or handlers change (not on every
+  // render), so the cell closures see fresh selection state while the columns' identity stays stable
+  // during a resize drag — `DataGrid` keys its width state by columnId, so widths survive the rebuild.
+  const columns = useMemo<TableColumnDefinition<CategorizedEmail>[]>(
+    () => [
+      createTableColumn<CategorizedEmail>({
+        columnId: COLUMN_ID.select,
+        renderHeaderCell: () => (
+          <Checkbox
+            aria-label="Select all e-mails"
+            checked={headerChecked}
+            onClick={(event) => event.stopPropagation()}
+            onChange={() => toggleSelectAll(visibleIds)}
+          />
+        ),
+        renderCell: (email) => {
+          const id = email.message.id;
+          const subject = email.message.subject ?? '(no subject)';
+          return (
+            <Checkbox
+              aria-label={`Select ${subject}`}
+              checked={id ? selectedIds.has(id) : false}
+              // Keep row activation (which opens the body panel) from firing too.
+              onClick={(event) => event.stopPropagation()}
+              onKeyDown={(event) => event.stopPropagation()}
+              onChange={() => {
+                if (id) {
+                  toggleSelected(id);
+                }
+              }}
+            />
+          );
+        },
+      }),
+      createTableColumn<CategorizedEmail>({
+        columnId: COLUMN_ID.date,
+        renderHeaderCell: () => 'Date',
+        renderCell: (email) => formatReceivedDate(email.message.receivedDateTime),
+      }),
+      createTableColumn<CategorizedEmail>({
+        columnId: COLUMN_ID.subject,
+        renderHeaderCell: () => 'Subject',
+        renderCell: (email) => {
+          const subject = email.message.subject ?? '(no subject)';
+          return (
+            <span className={styles.subjectCell}>
+              {/* Hover tooltip reveals the full subject when the cell text is ellipsized (AC2). */}
+              <Tooltip content={subject} relationship="label" withArrow>
+                <span className={styles.subjectText}>{subject}</span>
+              </Tooltip>
+              {email.needsReview && (
+                <Badge
+                  className={styles.reviewBadge}
+                  appearance="filled"
+                  color="warning"
+                  size="small"
+                >
+                  needs review
+                </Badge>
+              )}
+            </span>
+          );
+        },
+      }),
+      createTableColumn<CategorizedEmail>({
+        columnId: COLUMN_ID.organization,
+        renderHeaderCell: () => 'Organization',
+        renderCell: (email) => email.customer,
+      }),
+      createTableColumn<CategorizedEmail>({
+        columnId: COLUMN_ID.project,
+        renderHeaderCell: () => 'Project',
+        renderCell: (email) => email.project,
+      }),
+      createTableColumn<CategorizedEmail>({
+        columnId: COLUMN_ID.type,
+        renderHeaderCell: () => 'Type',
+        renderCell: (email) => typeLabel(email.type),
+      }),
+      createTableColumn<CategorizedEmail>({
+        columnId: COLUMN_ID.actions,
+        renderHeaderCell: () => 'Actions',
+        renderCell: (email) => {
+          const subject = email.message.subject ?? '(no subject)';
+          return (
+            <span className={styles.actionsCell}>
+              <Button
+                size="small"
+                appearance="subtle"
+                icon={<Delete20Regular />}
+                aria-label={`Delete ${subject}`}
+                // Keep row activation (which opens the body panel) from firing too.
+                onClick={(event) => {
+                  event.stopPropagation();
+                  openDeleteRow(email);
+                }}
+                onKeyDown={(event) => event.stopPropagation()}
+              />
+              {email.projectIsUnresolvedGuid && (
+                <Button
+                  size="small"
+                  appearance="subtle"
+                  icon={<TagSearch20Regular />}
+                  aria-label="Resolve project GUID"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    openResolve(email.project, email.customer);
+                  }}
+                  onKeyDown={(event) => event.stopPropagation()}
+                />
+              )}
+            </span>
+          );
+        },
+      }),
+    ],
+    [
+      headerChecked,
+      selectedIds,
+      visibleIds,
+      toggleSelectAll,
+      toggleSelected,
+      openDeleteRow,
+      openResolve,
+      styles,
+    ],
+  );
 
   return (
     <div className={styles.root}>
@@ -225,116 +363,69 @@ export function EmailList({ emails, allEmails, resolveProjectGuid, deleteEmails 
                 Delete{selectedCount >= 2 ? ` (${selectedCount})` : ''}
               </Button>
             </div>
-            <Table aria-label="E-mails" size="small" className={styles.table}>
-              <TableHeader>
-                <TableRow>
-                  <TableSelectionCell
-                    type="checkbox"
-                    checked={headerChecked}
-                    aria-label="Select all e-mails"
-                    className={styles.colSelect}
-                    onClick={() => toggleSelectAll(visibleIds)}
-                  />
-                  <TableHeaderCell className={styles.colDate}>Date</TableHeaderCell>
-                  <TableHeaderCell>Subject</TableHeaderCell>
-                  <TableHeaderCell className={styles.colOrg}>Organization</TableHeaderCell>
-                  <TableHeaderCell className={styles.colProject}>Project</TableHeaderCell>
-                  <TableHeaderCell className={styles.colType}>Type</TableHeaderCell>
-                  <TableHeaderCell className={styles.colActions}>Actions</TableHeaderCell>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {emails.map((email, index) => {
-                  const id = email.message.id;
-                  const subject = email.message.subject ?? '(no subject)';
+            <DataGrid
+              aria-label="E-mails"
+              size="small"
+              className={styles.grid}
+              items={emails}
+              columns={columns}
+              getRowId={(email) => email.message.id ?? ''}
+              resizableColumns
+              // autoFitColumns re-fits every column to the container on each render, which shrinks
+              // them below their ideal widths and immediately undoes a manual drag; disabling it lets
+              // resizes stick and keeps Date at its compact default (the grid overflows → main scrolls).
+              resizableColumnsOptions={{ autoFitColumns: false }}
+              columnSizingOptions={columnSizingOptions}
+            >
+              <DataGridHeader>
+                <DataGridRow>
+                  {({ renderHeaderCell }) => (
+                    <DataGridHeaderCell>{renderHeaderCell()}</DataGridHeaderCell>
+                  )}
+                </DataGridRow>
+              </DataGridHeader>
+              <DataGridBody<CategorizedEmail>>
+                {({ item, rowId }) => {
+                  const id = item.message.id;
+                  const subject = item.message.subject ?? '(no subject)';
                   const open = () => {
                     if (id) {
                       openEmail(id);
                     }
                   };
                   return (
-                    <TableRow
-                      key={id ?? index}
+                    <DataGridRow<CategorizedEmail>
+                      key={rowId}
                       className={styles.row}
                       tabIndex={0}
                       aria-label={subject}
                       onClick={open}
-                      onKeyDown={(event) => {
+                      onKeyDown={(event: KeyboardEvent<HTMLElement>) => {
                         if (event.key === 'Enter' || event.key === ' ') {
                           event.preventDefault();
                           open();
                         }
                       }}
                     >
-                      <TableSelectionCell
-                        type="checkbox"
-                        checked={id ? selectedIds.has(id) : false}
-                        aria-label={`Select ${subject}`}
-                        className={styles.colSelect}
-                        // Keep row activation (which opens the body panel) from firing too.
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          if (id) {
-                            toggleSelected(id);
+                      {({ columnId, renderCell }) => (
+                        <DataGridCell
+                          // Cells holding interactive controls trap Tab inside until Escape (`group`);
+                          // plain data cells stay a single Tab stop (`cell`).
+                          focusMode={
+                            columnId === COLUMN_ID.select || columnId === COLUMN_ID.actions
+                              ? 'group'
+                              : 'cell'
                           }
-                        }}
-                        onKeyDown={(event) => event.stopPropagation()}
-                      />
-                      <TableCell className={styles.cell}>
-                        {formatReceivedDate(email.message.receivedDateTime)}
-                      </TableCell>
-                      <TableCell>
-                        <span className={styles.subjectCell}>
-                          <span className={styles.subjectText}>{subject}</span>
-                          {email.needsReview && (
-                            <Badge
-                              className={styles.reviewBadge}
-                              appearance="filled"
-                              color="warning"
-                              size="small"
-                            >
-                              needs review
-                            </Badge>
-                          )}
-                        </span>
-                      </TableCell>
-                      <TableCell className={styles.cell}>{email.customer}</TableCell>
-                      <TableCell className={styles.cell}>{email.project}</TableCell>
-                      <TableCell className={styles.cell}>{typeLabel(email.type)}</TableCell>
-                      <TableCell className={styles.cell}>
-                        <span className={styles.actionsCell}>
-                          <Button
-                            size="small"
-                            appearance="subtle"
-                            icon={<Delete20Regular />}
-                            aria-label={`Delete ${subject}`}
-                            // Keep row activation (which opens the body panel) from firing too.
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              openDeleteRow(email);
-                            }}
-                            onKeyDown={(event) => event.stopPropagation()}
-                          />
-                          {email.projectIsUnresolvedGuid && (
-                            <Button
-                              size="small"
-                              appearance="subtle"
-                              icon={<TagSearch20Regular />}
-                              aria-label="Resolve project GUID"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                openResolve(email.project, email.customer);
-                              }}
-                              onKeyDown={(event) => event.stopPropagation()}
-                            />
-                          )}
-                        </span>
-                      </TableCell>
-                    </TableRow>
+                          className={ELLIPSIS_COLUMNS.has(columnId) ? styles.cell : undefined}
+                        >
+                          {renderCell(item)}
+                        </DataGridCell>
+                      )}
+                    </DataGridRow>
                   );
-                })}
-              </TableBody>
-            </Table>
+                }}
+              </DataGridBody>
+            </DataGrid>
           </>
         )}
       </div>

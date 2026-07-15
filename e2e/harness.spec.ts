@@ -18,13 +18,54 @@ const width = async (locator: import('@playwright/test').Locator) => {
 test('columns are not evenly split — Subject is the widest', async ({ page }) => {
   await page.goto('/harness.html');
 
-  // Fluent's Table marks the first data column as a rowheader (not columnheader) for grid semantics.
-  const date = await width(page.getByRole('rowheader', { name: 'Date' }));
+  // Under DataGrid every header is a columnheader (the primitive Table marked the first data column
+  // as a rowheader; the selection column is now the first column, so Date is a plain columnheader).
+  const date = await width(page.getByRole('columnheader', { name: 'Date' }));
   const subject = await width(page.getByRole('columnheader', { name: 'Subject' }));
   const type = await width(page.getByRole('columnheader', { name: 'Type' }));
 
   expect(subject).toBeGreaterThan(date);
   expect(subject).toBeGreaterThan(type);
+});
+
+test('a data column is resizable — dragging its handle widens it (AC1)', async ({ page }) => {
+  await page.goto('/harness.html');
+
+  const subject = page.getByRole('columnheader', { name: 'Subject' });
+  const before = (await subject.boundingBox())!.width;
+
+  // Each header cell carries DataGrid's resize handle (fui-TableResizeHandle) when resizableColumns
+  // is on; drag Subject's handle to the right and it should widen.
+  const handle = subject.locator('.fui-TableResizeHandle');
+  const hb = (await handle.boundingBox())!;
+  await page.mouse.move(hb.x + hb.width / 2, hb.y + hb.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(hb.x + hb.width / 2 + 120, hb.y + hb.height / 2, { steps: 10 });
+  await page.mouse.up();
+
+  const after = (await subject.boundingBox())!.width;
+  expect(after).toBeGreaterThan(before + 40);
+});
+
+test('hovering a truncated subject reveals the full subject in a tooltip (AC2)', async ({ page }) => {
+  await page.goto('/harness.html');
+
+  const full = 'Build failed on main for a rather long subject line that keeps going and going';
+  // The visible cell is ellipsized; hovering the subject text surfaces the full text in a tooltip.
+  await page.getByRole('row', { name: full }).getByText(full).hover();
+  await expect(page.getByRole('tooltip')).toHaveText(full);
+});
+
+test('the date column is compact — narrower than Subject and near its text width (AC3)', async ({
+  page,
+}) => {
+  await page.goto('/harness.html');
+
+  const date = await width(page.getByRole('columnheader', { name: 'Date' }));
+  const subject = await width(page.getByRole('columnheader', { name: 'Subject' }));
+  // Date fits its fixed-length text (≈140px default) and stays well under Subject.
+  expect(date).toBeLessThan(200);
+  expect(date).toBeLessThan(subject);
 });
 
 test('the needs-review badge stays on a single line', async ({ page }) => {

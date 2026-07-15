@@ -366,3 +366,46 @@ describe('EmailList — delete actions', () => {
     expect(button).toHaveTextContent('');
   });
 });
+
+describe('EmailList — subject tooltip (AC2)', () => {
+  // The subject is wrapped in a Fluent Tooltip (relationship="label"); with string content that wires
+  // the FULL subject onto the trigger as `aria-label`, so the whole subject is reachable even when the
+  // visible cell is ellipsized. jsdom has no layout engine, so hover visibility itself is asserted in
+  // the Playwright E2E — here we lock the wiring that carries the full text.
+  const LONG =
+    'Build failed on main for a rather long subject line that keeps going well past the column';
+
+  it('wires the full subject onto the tooltip trigger even when the cell would ellipsize', () => {
+    renderList({ emails: [email({ message: { id: 'a', subject: LONG } })] });
+
+    const trigger = screen.getByText(LONG);
+    expect(trigger).toHaveAttribute('aria-label', LONG);
+  });
+
+  it('renders a missing subject as the "(no subject)" placeholder in the tooltip trigger', () => {
+    renderList({ emails: [email({ message: { id: 'a', subject: null } })] });
+
+    const trigger = screen.getByText('(no subject)');
+    expect(trigger).toHaveAttribute('aria-label', '(no subject)');
+  });
+});
+
+describe('EmailList — row-click vs. selection stay separate (DataGrid, no selectionMode)', () => {
+  it('opens the body panel on row click without toggling that row selection', () => {
+    renderList({
+      emails: [
+        email({
+          message: { id: 'a', subject: 'First', body: { contentType: 'text', content: 'body a' } },
+        }),
+        email({ message: { id: 'b', subject: 'Second' } }),
+      ],
+    });
+
+    fireEvent.click(screen.getByRole('row', { name: /First/ }));
+
+    // The drawer opened…
+    expect(screen.getByText('body a')).toBeInTheDocument();
+    // …but the row's own checkbox was not toggled (selection is checkbox-only under DataGrid).
+    expect(screen.getByRole('checkbox', { name: 'Select First' })).not.toBeChecked();
+  });
+});
