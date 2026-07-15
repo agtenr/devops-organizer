@@ -39,6 +39,8 @@ function renderList(overrides: Partial<EmailListProps> = {}) {
     allEmails: emails,
     resolveProjectGuid: vi.fn(() => Promise.resolve()),
     deleteEmails: vi.fn(() => Promise.resolve()),
+    selectedFilters: [],
+    onRemoveFilter: vi.fn(),
     ...overrides,
   };
   return render(

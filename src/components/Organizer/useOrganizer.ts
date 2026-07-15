@@ -9,6 +9,7 @@ import {
   filterByTypes,
   type FilterOption,
 } from '../SidebarFilters/facetFilters';
+import { buildSelectedFilters, type SelectedFilterChip } from '../SelectedFilters/filterChips';
 
 /**
  * Organizer container logic: consumes the shared categorized-mail hook and layers the three filters
@@ -89,6 +90,25 @@ export function useOrganizer() {
     [orgBase, selectedProject, selectedTypeKeys],
   );
 
+  // The active sidebar selection as dismissible chips for the SelectedFilters overview (derived
+  // during render — no setState-in-effect). The org tab is intentionally not chipped (OQ1, story 58).
+  const selectedFilters = useMemo<SelectedFilterChip[]>(
+    () => buildSelectedFilters(selectedProject, selectedTypeKeys),
+    [selectedProject, selectedTypeKeys],
+  );
+
+  // Remove a single active filter from its chip's X: clear the project, or toggle that type off.
+  const removeFilter = useCallback(
+    (chip: SelectedFilterChip) => {
+      if (chip.facet === 'project') {
+        setSelectedProject(null);
+      } else {
+        onToggleType(chip.value);
+      }
+    },
+    [onToggleType],
+  );
+
   return {
     status,
     error,
@@ -105,5 +125,7 @@ export function useOrganizer() {
     typeOptions,
     selectedTypeKeys,
     onToggleType,
+    selectedFilters,
+    removeFilter,
   };
 }

@@ -12,6 +12,7 @@ import {
   filterByTypes,
   typeKey,
   typeLabel,
+  typeLabelFromKey,
 } from './facetFilters';
 
 const BUILD_FAILED: MessageType = { category: 'Build', subType: 'Failed' };
@@ -34,6 +35,18 @@ describe('typeKey / typeLabel', () => {
   it('derives a stable key and a readable label from a MessageType', () => {
     expect(typeKey(BUILD_FAILED)).toBe('Build::Failed');
     expect(typeLabel(BUILD_FAILED)).toBe('Build · Failed');
+  });
+});
+
+describe('typeLabelFromKey', () => {
+  it('is the exact inverse of typeKey — reproduces typeLabel from the key alone', () => {
+    for (const type of [BUILD_FAILED, WI_ASSIGNED, PR_CREATED]) {
+      expect(typeLabelFromKey(typeKey(type))).toBe(typeLabel(type));
+    }
+  });
+
+  it('returns the input unchanged when it carries no separator', () => {
+    expect(typeLabelFromKey('Malformed')).toBe('Malformed');
   });
 });
 

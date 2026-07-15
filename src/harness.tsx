@@ -12,7 +12,12 @@ import type { CategorizedEmail } from './models/categorization';
 import { Organizer } from './components/Organizer/Organizer';
 import type { OrganizerData } from './components/Organizer/useOrganizer';
 import { ALL_CUSTOMERS } from './components/CustomerTabs/useCustomerTabs';
-import { deriveProjectOptions, deriveTypeOptions } from './components/SidebarFilters/facetFilters';
+import {
+  deriveProjectOptions,
+  deriveTypeOptions,
+  typeKey,
+} from './components/SidebarFilters/facetFilters';
+import { buildSelectedFilters } from './components/SelectedFilters/filterChips';
 
 /**
  * Dev/test-only entry that drives the **real** app layout (`Organizer` + its children) with mock data,
@@ -87,25 +92,42 @@ const emails: CategorizedEmail[] = [
 
 // A no-op stand-in for the real useOrganizer: static data, selection callbacks that do nothing, and a
 // status read from the URL so the loading branch is drivable. Pure, so StrictMode's double render is safe.
-const status: OrganizerData['status'] =
-  new URLSearchParams(window.location.search).get('state') === 'loading' ? 'loading' : 'success';
+const stateParam = new URLSearchParams(window.location.search).get('state');
+const status: OrganizerData['status'] = stateParam === 'loading' ? 'loading' : 'success';
+
+// `?state=filtered` seeds an active project + type selection so the SelectedFilters chips render
+// deterministically for the screenshot/E2E (story 58). Alpha × Work item·Assigned matches the filler
+// rows, so `filtered` stays non-empty and the toolbar (search box + chips) is shown.
+const isFiltered = stateParam === 'filtered';
+const SEEDED_PROJECT = 'Alpha';
+const SEEDED_TYPE_KEY = typeKey({ category: 'Work item', subType: 'Assigned' });
+
+const selectedProject = isFiltered ? SEEDED_PROJECT : null;
+const selectedTypeKeys = new Set<string>(isFiltered ? [SEEDED_TYPE_KEY] : []);
+const filtered = isFiltered
+  ? emails.filter(
+      (email) => email.project === SEEDED_PROJECT && typeKey(email.type) === SEEDED_TYPE_KEY,
+    )
+  : emails;
 
 const mockData: OrganizerData = {
   status,
   error: '',
   folderName: 'DevOps',
   categorized: emails,
-  filtered: emails,
+  filtered,
   resolveProjectGuid: () => Promise.resolve(),
   deleteEmails: () => Promise.resolve(),
   selectedCustomer: ALL_CUSTOMERS,
   selectCustomer: () => {},
   projectOptions: deriveProjectOptions(emails),
-  selectedProject: null,
+  selectedProject,
   onSelectProject: () => {},
   typeOptions: deriveTypeOptions(emails),
-  selectedTypeKeys: new Set<string>(),
+  selectedTypeKeys,
   onToggleType: () => {},
+  selectedFilters: buildSelectedFilters(selectedProject, selectedTypeKeys),
+  removeFilter: () => {},
 };
 
 const useMockOrganizer = (): OrganizerData => mockData;
