@@ -62,13 +62,19 @@ export interface UseEmailListResult {
 /**
  * Owns which e-mail's body is shown and whether the panel is open. The selected e-mail is captured by
  * value on open, so the panel keeps showing it even if a later filter change removes that row from
- * `emails` (the ratified "keep showing until closed" behavior — see `plans/40/plan.md`). Bulk selection
- * is pruned to the currently-visible rows, so a filter change can never leave a hidden row selected for
- * deletion (`plans/43/plan.md`).
+ * `emails` (the ratified "keep showing until closed" behavior — see `plans/40/plan.md`). The panel's
+ * effective open state is derived against the **full corpus** `allEmails`, not the filtered `emails`:
+ * a mere filter change leaves the e-mail in the corpus so the panel persists (story 40), but **deleting**
+ * the previewed e-mail removes it from the corpus, so the panel closes (`plans/55/plan.md`). Bulk
+ * selection is pruned to the currently-visible rows, so a filter change can never leave a hidden row
+ * selected for deletion (`plans/43/plan.md`).
  */
-export function useEmailList(emails: CategorizedEmail[]): UseEmailListResult {
+export function useEmailList(
+  emails: CategorizedEmail[],
+  allEmails: CategorizedEmail[],
+): UseEmailListResult {
   const [selectedEmail, setSelectedEmail] = useState<CategorizedEmail | null>(null);
-  const [isPanelOpen, setIsPanelOpen] = useState(false);
+  const [rawIsPanelOpen, setRawIsPanelOpen] = useState(false);
   const [resolveTarget, setResolveTarget] = useState<ResolveTarget | null>(null);
   const [rawSelectedIds, setRawSelectedIds] = useState<ReadonlySet<string>>(new Set());
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
@@ -80,13 +86,13 @@ export function useEmailList(emails: CategorizedEmail[]): UseEmailListResult {
         return;
       }
       setSelectedEmail(found);
-      setIsPanelOpen(true);
+      setRawIsPanelOpen(true);
     },
     [emails],
   );
 
   const closePanel = useCallback(() => {
-    setIsPanelOpen(false);
+    setRawIsPanelOpen(false);
   }, []);
 
   const openResolve = useCallback((guid: string, customer: string) => {
@@ -96,6 +102,20 @@ export function useEmailList(emails: CategorizedEmail[]): UseEmailListResult {
   const closeResolve = useCallback(() => {
     setResolveTarget(null);
   }, []);
+
+  // Ids present in the full categorized corpus (not the filtered set). The previewed e-mail persists
+  // across filter changes (story 40) but must vanish once it leaves the corpus, i.e. is deleted.
+  const allIds = useMemo(
+    () =>
+      new Set(allEmails.map((email) => email.message.id).filter((id): id is string => Boolean(id))),
+    [allEmails],
+  );
+
+  // Derive the effective open state during render (no setState-in-effect): open only while the raw
+  // flag is set AND the captured e-mail still exists in the corpus. Deleting it drops it from `allIds`,
+  // so the panel closes on its own; a filter change leaves it in the corpus, so the panel stays open.
+  const selectedId = selectedEmail?.message.id;
+  const isPanelOpen = rawIsPanelOpen && selectedId != null && allIds.has(selectedId);
 
   // The ids currently visible in the (filtered) list — the ceiling for selection and select-all.
   const visibleIds = useMemo(

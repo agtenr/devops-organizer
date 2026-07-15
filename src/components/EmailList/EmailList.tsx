@@ -18,6 +18,7 @@ import {
 } from '@fluentui/react-components';
 import { Delete20Regular, TagSearch20Regular } from '@fluentui/react-icons';
 import type { Message } from '@microsoft/microsoft-graph-types';
+import type { CSSProperties } from 'react';
 import type { CategorizedEmail } from '../../models/categorization';
 import { typeLabel } from '../SidebarFilters/facetFilters';
 import { ResolveProjectDialog } from '../ResolveProjectDialog/ResolveProjectDialog';
@@ -25,6 +26,7 @@ import { deriveKnownProjectNames } from '../ResolveProjectDialog/knownProjects';
 import { ConfirmDeleteDialog } from '../ConfirmDeleteDialog/ConfirmDeleteDialog';
 import { formatReceivedDate, resolveBody } from './emailFormatters';
 import { useEmailList } from './useEmailList';
+import { useResizablePanel } from './useResizablePanel';
 
 const useStyles = makeStyles({
   // List fills the view; the body drawer docks to the right of it (inline = non-blocking). Fills the
@@ -104,6 +106,18 @@ const useStyles = makeStyles({
   drawer: {
     flexShrink: 0,
   },
+  // Thin draggable bar between the list and the drawer; drag it to resize the preview (story 55).
+  // `touchAction: none` keeps a touch-drag from scrolling the list instead of resizing.
+  resizeHandle: {
+    flexShrink: 0,
+    width: '6px',
+    cursor: 'col-resize',
+    backgroundColor: tokens.colorNeutralBackground5,
+    touchAction: 'none',
+    ':hover': {
+      backgroundColor: tokens.colorNeutralStroke1,
+    },
+  },
   drawerBody: {
     display: 'flex',
     flexDirection: 'column',
@@ -176,7 +190,8 @@ export function EmailList({ emails, allEmails, resolveProjectGuid, deleteEmails 
     openDeleteRow,
     openDeleteBulk,
     closeDelete,
-  } = useEmailList(emails);
+  } = useEmailList(emails, allEmails);
+  const { width: panelWidth, handleProps } = useResizablePanel();
 
   // The ids of the currently-rendered rows — the scope of the header select-all checkbox.
   const visibleIds = emails
@@ -324,12 +339,24 @@ export function EmailList({ emails, allEmails, resolveProjectGuid, deleteEmails 
         )}
       </div>
 
+      {/* Drag handle to resize the preview; only present while the panel is open (story 55). */}
+      {isPanelOpen && (
+        <div
+          className={styles.resizeHandle}
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize e-mail preview"
+          {...handleProps}
+        />
+      )}
+
       <InlineDrawer
         open={isPanelOpen}
         position="end"
         separator
-        size="medium"
         className={styles.drawer}
+        // Controlled width (px) drives the drawer size — overrides the preset `size` var (story 55).
+        style={{ '--fui-Drawer--size': `${panelWidth}px` } as CSSProperties}
       >
         <DrawerHeader>
           <DrawerHeaderTitle
