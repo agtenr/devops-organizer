@@ -77,3 +77,10 @@
   never `git add`ed can pass locally while being **absent from the PR**. Before marking done,
   verify that all new/required test and source files are **git-tracked and included in the change**
   (e.g. `git status` shows nothing untracked that the change needs). (Story 43.)
+- **Swapping a component's underlying primitive means sweeping the suite for stale role assertions.**
+  When a story swaps the Fluent primitive under a component (e.g. **Table → DataGrid**, which changes
+  the ARIA role from `table` to `grid`), sweep the **full Vitest suite** for role-based assertions
+  (`getByRole('table'|'grid'|…)`) tied to the **old** primitive and update them in the **same change**.
+  Role-based assertions drift **silently** when the underlying primitive changes: story 54's
+  Table→DataGrid migration left an `Organizer.test.tsx` `getByRole('table', {name:'E-mails'})`
+  assertion red on `main` until an unrelated story (57) had to fix it. (Stories 54, 57.)
