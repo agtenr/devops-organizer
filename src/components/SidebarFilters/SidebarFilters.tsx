@@ -1,23 +1,29 @@
-import { CounterBadge, ToggleButton, Text, makeStyles, tokens } from '@fluentui/react-components';
+import {
+  Accordion,
+  AccordionHeader,
+  AccordionItem,
+  AccordionPanel,
+  CounterBadge,
+  ToggleButton,
+  Text,
+  makeStyles,
+  tokens,
+} from '@fluentui/react-components';
 import type { FilterOption } from './facetFilters';
 
 const useStyles = makeStyles({
   root: {
     display: 'flex',
     flexDirection: 'column',
-    gap: tokens.spacingVerticalL,
     paddingBlock: tokens.spacingVerticalM,
     paddingInline: tokens.spacingHorizontalL,
     borderRight: `${tokens.strokeWidthThin} solid ${tokens.colorNeutralStroke2}`,
   },
-  group: {
+  // The stack of option rows inside a collapsible section's panel.
+  options: {
     display: 'flex',
     flexDirection: 'column',
     gap: tokens.spacingVerticalXS,
-  },
-  groupHeading: {
-    display: 'block',
-    marginBlockEnd: tokens.spacingVerticalXXS,
   },
   option: {
     // Full-width row: value ellipsizes on the left, counter pinned right; never wraps to a 2nd line.
@@ -42,7 +48,11 @@ const useStyles = makeStyles({
   },
 });
 
-/** A labelled facet group (Projects / Types) rendered as a vertical stack of toggle buttons. */
+/**
+ * A labelled facet group (Projects / Types) rendered as a collapsible accordion section: its title
+ * lives in an `AccordionHeader` (chevron to the left) and its options — a vertical stack of toggle
+ * buttons — in the `AccordionPanel`, which Fluent unmounts when the section is collapsed (story 57).
+ */
 interface FilterGroupProps {
   heading: string;
   options: FilterOption[];
@@ -57,36 +67,38 @@ interface FilterGroupProps {
 function FilterGroup({ heading, options, isSelected, onToggle, ariaLabel }: FilterGroupProps) {
   const styles = useStyles();
   return (
-    <div className={styles.group} role="group" aria-label={ariaLabel}>
-      <Text as="h2" size={300} weight="semibold" className={styles.groupHeading}>
-        {heading}
-      </Text>
-      {options.length === 0 ? (
-        <Text size={200} className={styles.empty}>
-          None
-        </Text>
-      ) : (
-        options.map((option) => (
-          <ToggleButton
-            key={option.value}
-            className={styles.option}
-            appearance="subtle"
-            checked={isSelected(option.value)}
-            onClick={() => onToggle(option.value)}
-          >
-            <span className={styles.optionValue}>{option.label}</span>
-            <CounterBadge
-              className={styles.optionCount}
-              count={option.count}
-              appearance="filled"
-              color="informative"
-              size="small"
-              showZero
-            />
-          </ToggleButton>
-        ))
-      )}
-    </div>
+    <AccordionItem value={heading}>
+      <AccordionHeader>{heading}</AccordionHeader>
+      <AccordionPanel>
+        <div className={styles.options} role="group" aria-label={ariaLabel}>
+          {options.length === 0 ? (
+            <Text size={200} className={styles.empty}>
+              None
+            </Text>
+          ) : (
+            options.map((option) => (
+              <ToggleButton
+                key={option.value}
+                className={styles.option}
+                appearance="subtle"
+                checked={isSelected(option.value)}
+                onClick={() => onToggle(option.value)}
+              >
+                <span className={styles.optionValue}>{option.label}</span>
+                <CounterBadge
+                  className={styles.optionCount}
+                  count={option.count}
+                  appearance="filled"
+                  color="informative"
+                  size="small"
+                  showZero
+                />
+              </ToggleButton>
+            ))
+          )}
+        </div>
+      </AccordionPanel>
+    </AccordionItem>
   );
 }
 
@@ -107,11 +119,15 @@ export interface SidebarFiltersProps {
 
 /**
  * Left-sidebar facet filters: a single-value **Projects** group and a multi-value **Types** group,
- * each option showing an item counter (`.claude/rules/frontend-architecture.md`). Controlled and
- * purely presentational — all option derivation and selection state live in `Organizer`/
- * `useOrganizer`; this component only renders the options it is handed and reports clicks upward.
- * `ToggleButton` (`aria-pressed`) gives the selection indication and makes click-to-deselect natural
- * for both facets.
+ * each option showing an item counter (`.claude/rules/frontend-architecture.md`). Each group is a
+ * **collapsible** section (Fluent `Accordion`): a chevron sits to the left of the title, both are
+ * expanded by default, and clicking a header collapses that section — hiding its options — with the
+ * two sections toggling independently (story 57). Controlled and purely presentational — all option
+ * derivation and selection state live in `Organizer`/`useOrganizer`; this component only renders the
+ * options it is handed and reports clicks upward. The `Accordion` is **uncontrolled** (it owns its
+ * own open/closed state via `defaultOpenItems`), so there is no collapse state to manage here — it
+ * resets to expanded on reload (no persistence). `ToggleButton` (`aria-pressed`) gives the selection
+ * indication and makes click-to-deselect natural for both facets.
  */
 export function SidebarFilters({
   projectOptions,
@@ -125,20 +141,22 @@ export function SidebarFilters({
 
   return (
     <aside className={styles.root} aria-label="Filters">
-      <FilterGroup
-        heading="Projects"
-        ariaLabel="Filter by project"
-        options={projectOptions}
-        isSelected={(value) => value === selectedProject}
-        onToggle={onSelectProject}
-      />
-      <FilterGroup
-        heading="Types"
-        ariaLabel="Filter by type"
-        options={typeOptions}
-        isSelected={(value) => selectedTypeKeys.has(value)}
-        onToggle={onToggleType}
-      />
+      <Accordion multiple collapsible defaultOpenItems={['Projects', 'Types']}>
+        <FilterGroup
+          heading="Projects"
+          ariaLabel="Filter by project"
+          options={projectOptions}
+          isSelected={(value) => value === selectedProject}
+          onToggle={onSelectProject}
+        />
+        <FilterGroup
+          heading="Types"
+          ariaLabel="Filter by type"
+          options={typeOptions}
+          isSelected={(value) => selectedTypeKeys.has(value)}
+          onToggle={onToggleType}
+        />
+      </Accordion>
     </aside>
   );
 }

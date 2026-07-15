@@ -63,7 +63,7 @@ describe('Organizer — load lifecycle gate', () => {
     expect(screen.getByText(/Loading mail from "DevOps"/)).toBeInTheDocument();
     expect(screen.queryByRole('tablist', { name: 'Organizations' })).not.toBeInTheDocument();
     expect(screen.queryByRole('complementary', { name: 'Filters' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('table', { name: 'E-mails' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('grid', { name: 'E-mails' })).not.toBeInTheDocument();
   });
 
   it('shows only the error on failure — no tabs, filters, or list', () => {
@@ -73,7 +73,7 @@ describe('Organizer — load lifecycle gate', () => {
     expect(screen.queryByText(/Loading mail from/)).not.toBeInTheDocument();
     expect(screen.queryByRole('tablist', { name: 'Organizations' })).not.toBeInTheDocument();
     expect(screen.queryByRole('complementary', { name: 'Filters' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('table', { name: 'E-mails' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('grid', { name: 'E-mails' })).not.toBeInTheDocument();
   });
 
   it('renders the tabs, filters, and list on success', () => {
@@ -81,7 +81,7 @@ describe('Organizer — load lifecycle gate', () => {
 
     expect(screen.getByRole('tablist', { name: 'Organizations' })).toBeInTheDocument();
     expect(screen.getByRole('complementary', { name: 'Filters' })).toBeInTheDocument();
-    expect(screen.getByRole('table', { name: 'E-mails' })).toBeInTheDocument();
+    expect(screen.getByRole('grid', { name: 'E-mails' })).toBeInTheDocument();
     expect(screen.queryByText(/Loading mail from/)).not.toBeInTheDocument();
   });
 
@@ -91,6 +91,6 @@ describe('Organizer — load lifecycle gate', () => {
     expect(screen.getByText(/nothing to display/i)).toBeInTheDocument();
     expect(screen.queryByRole('tablist', { name: 'Organizations' })).not.toBeInTheDocument();
     expect(screen.queryByRole('complementary', { name: 'Filters' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('table', { name: 'E-mails' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('grid', { name: 'E-mails' })).not.toBeInTheDocument();
   });
 });

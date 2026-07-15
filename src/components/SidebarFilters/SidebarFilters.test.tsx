@@ -84,4 +84,39 @@ describe('SidebarFilters', () => {
     renderSidebar(baseProps({ projectOptions: [] }));
     expect(screen.getByText('None')).toBeInTheDocument();
   });
+
+  it('renders both sections expanded by default — all options visible', () => {
+    renderSidebar(baseProps());
+
+    // Section headers are present as toggle buttons…
+    expect(screen.getByRole('button', { name: 'Projects' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Types' })).toBeInTheDocument();
+    // …and, expanded by default, every section's options are in the DOM.
+    expect(screen.getByRole('button', { name: /Alpha/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Build · Failed/ })).toBeInTheDocument();
+  });
+
+  it('collapsing the Projects section hides its options while Types stays open', () => {
+    renderSidebar(baseProps());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Projects' }));
+
+    // Projects' panel is unmounted, so its options are gone from the DOM…
+    expect(screen.queryByRole('button', { name: /Alpha/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Beta/ })).not.toBeInTheDocument();
+    // …but Types is independent and its options remain (collapsible + multiple).
+    expect(screen.getByRole('button', { name: /Build · Failed/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Work item · Assigned/ })).toBeInTheDocument();
+  });
+
+  it('re-clicking a collapsed section header expands it again', () => {
+    renderSidebar(baseProps());
+
+    const projectsHeader = screen.getByRole('button', { name: 'Projects' });
+    fireEvent.click(projectsHeader);
+    expect(screen.queryByRole('button', { name: /Alpha/ })).not.toBeInTheDocument();
+
+    fireEvent.click(projectsHeader);
+    expect(screen.getByRole('button', { name: /Alpha/ })).toBeInTheDocument();
+  });
 });
