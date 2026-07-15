@@ -52,13 +52,12 @@ derived fixture JSON both stay `.gitignore`d (they contain personal data) — pe
 
 | AC | Status | Where |
 |---|---|---|
-| Approved PR e-mails categorized under "Pull Request - Approved" | covered | Tasks 1–4; type `Pull request · Approved` (naming → Q3) |
-| Cancelled deployment e-mails categorized under "Deployment - Cancelled" | covered | Tasks 1–4; type `Release · Deployment cancelled` (category/naming → Q1/Q2) |
+| Approved PR e-mails categorized under "Pull Request - Approved" | covered | Tasks 1–4; type `Pull request · Approved` |
+| Cancelled deployment e-mails categorized under "Deployment - Cancelled" | covered | Tasks 1–4; type `Release · Deployment cancelled` |
 
-Both ACs are fully covered — each e-mail categorizes to a dedicated new sub-type. The **stored
-sub-type label / category** for each is a naming decision surfaced as an open question (Q1–Q3) so the
-human ratifies the exact wording before merge; the *behavior* (each e-mail correctly recognised) is
-not narrowed.
+Both ACs are fully covered — each e-mail categorizes to a dedicated new sub-type. The
+naming/detection decisions (Q1–Q5) were **ratified by the reviewer** on PR #35 (all confirmed as the
+recommended option — see *Assumptions & open questions*); no AC is narrowed.
 
 ## Implementation approach
 
@@ -150,31 +149,23 @@ neither e-mail lands on `Other · Unknown` any longer.
 
 ## Assumptions & open questions
 
-- **Q1 — Cancelled deployments file under the existing `Release` category, not a new `Deployment`
-  category.** The AC labels the Type "Deployment - Cancelled"; the taxonomy has no `Deployment`
-  category, and its sibling deployment outcomes already live under `Release` (`Deployment
-  succeeded`/`Deployment failed`). I file it as **`Release · Deployment cancelled`** (recommended,
-  consistent with the siblings) **or** should a distinct top-level `Deployment` category be
-  introduced? Reply A (Release) or B (new Deployment category).
-- **Q2 — Release cancelled sub-type is named `Deployment cancelled` (mirroring the siblings)** —
-  displaying as `Release · Deployment cancelled` — **recommended, or** should it be the shorter
-  `Cancelled` (displaying `Release · Cancelled`, mirroring the story-44 `Build · Cancelled`
-  precedent)? Reply A (`Deployment cancelled`) or B (`Cancelled`).
-- **Q3 — PR approval is a distinct new sub-type `Pull request · Approved`, detected via the action
-  phrase `approved the changes` / `approved the pull request`** inside the existing PR gate
-  (recommended — that is the literal ADO wording), **or** should approval be folded into an existing
-  sub-type / detected via a broader bare-`approved` check? Reply A (dedicated `Approved` sub-type,
-  phrase-based) or B (fold/broaden).
-- **Q4 — Deployment-cancelled detection uses the bounded regex
-  `/deployment\b[\s\S]{0,40}cancell?ed/`** so it matches both the subject `[deployment cancelled]`
-  **and** the body's separated "deployment … cancelled" phrasing (recommended), **or** should it use
-  the simpler `text.includes('deployment cancelled')` that matches only the contiguous subject and
-  relies on the subject fallback (as story 44's Build·Cancelled did)? Reply A (bounded regex) or B
-  (subject-contiguous includes).
-- **Q5 — Sub-type spelling is UK `Cancelled` (double-L)**, matching the AC and the existing
-  `Build · Cancelled` value; the detection regex (`cancell?ed`) matches both `cancelled` and
-  `canceled` regardless. Recommended, **or** track the source e-mail's US `canceled` for the stored
-  value? Reply A (`Cancelled`) or B (`Canceled`).
+All five were opened as either/or threads on PR #35 and **resolved by the reviewer** — each confirmed
+as the recommended option (A). Recorded here as settled decisions:
+
+- **Q1 — RESOLVED (A): cancelled deployments file under the existing `Release` category** (no new
+  top-level `Deployment` category), consistent with the sibling `Deployment succeeded` /
+  `Deployment failed` outcomes.
+- **Q2 — RESOLVED (A): the Release cancelled sub-type is named `Deployment cancelled`** (displays as
+  `Release · Deployment cancelled`), mirroring the sibling names.
+- **Q3 — RESOLVED (A): PR approval is a distinct new sub-type `Pull request · Approved`**, detected
+  inside the existing PR gate via the action phrase `approved the changes` / `approved the pull
+  request` (not a bare `approved`).
+- **Q4 — RESOLVED (A): deployment-cancelled detection uses the bounded regex
+  `/deployment\b[\s\S]{0,40}cancell?ed/`**, matching both the contiguous subject `[deployment
+  cancelled]` and the body's separated "deployment … cancelled" phrasing.
+- **Q5 — RESOLVED (A): the stored sub-type spelling is UK `Cancelled` (double-L)**, matching the AC
+  and the existing `Build · Cancelled` value; the detection regex (`cancell?ed`) matches both
+  spellings regardless.
 
 ## Considerations
 
@@ -204,14 +195,12 @@ neither e-mail lands on `Other · Unknown` any longer.
   - `release-cancelled-eqlweb` → `tcr-group` / `TCR.EquipmentCenter` /
     **Release · Deployment cancelled**; `needsReview: false`.
   - Regression: the existing corpus + all other suites still pass (`npm run test`).
-  - (Adjust the two expected sub-type labels to whatever Q1/Q2/Q5 resolve to.)
 - **Live verification:** not needed (no running-app or visual acceptance).
 
 ## Definition of done
 
 - [ ] `Pull request` sub-type union includes `'Approved'` and `Release` includes `'Deployment
-      cancelled'` (or the label Q1/Q2/Q5 settle on) in `src/models/categorization.ts`; type-checks
-      cleanly.
+      cancelled'` in `src/models/categorization.ts`; type-checks cleanly.
 - [ ] Case 1 `pr-approved-3094` categorizes as `tcr-group` / `TCR.EquipmentCenter` /
       `Pull request · Approved`, `needsReview: false`.
 - [ ] Case 2 `release-cancelled-eqlweb` categorizes as `tcr-group` / `TCR.EquipmentCenter` /
