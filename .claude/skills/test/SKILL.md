@@ -12,6 +12,16 @@ The `test` script is defined in `package.json`: `vitest run` (verified 2026-07-0
 npm run test   # Vitest, single run (jsdom environment, globals enabled)
 ```
 
+- **Known failure on this Windows/Node setup: "Worker exited unexpectedly".** The default vitest
+  worker pool can crash **immediately** — an unhandled `'error'` event / `Worker exited unexpectedly`
+  **before any test runs**. This is an environment/pool issue, **not** a broken suite (the same suite
+  is green on `main`); do **not** misdiagnose it as a real test failure. The reliable fallback is the
+  **forks** pool:
+
+  ```bash
+  npm run test -- --pool=forks   # vitest run --pool=forks — avoids the worker-pool crash
+  ```
+
 - Vitest config lives in `vite.config.ts` (`test` block): `environment: 'jsdom'`,
   `globals: true`, `setupFiles: './src/setupTests.ts'`, and `include: ['src/**/*.{test,spec}.{ts,tsx}']`
   so it does **not** pick up the Playwright specs under `e2e/`.

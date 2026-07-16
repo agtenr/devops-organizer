@@ -85,6 +85,13 @@
   viewport → the same pixels every run). Capture with `page.screenshot({ path })` (documentary
   evidence) — **not** `toHaveScreenshot` visual-regression baselines, which add flaky pixel-diff
   gating this rule does not want.
+  - **Keep the harness mock in lockstep with the hook's return shape.** The harness mock
+    (`src/harness.tsx` `mockData`, typed as `ReturnType<typeof useOrganizer>`) is a **hand-kept
+    parallel** of the real hook's return shape. Any UI story that **adds a field** to `useOrganizer`'s
+    return **must seed that field in the harness mock in the same change**, or the harness **build
+    breaks** (and the screenshot/E2E seam with it). The proper structural fix — a shared
+    factory/default for the return shape — is **app code and out of scope for this rule**; until it
+    exists, treat this as a **same-change reminder** whenever the hook's return grows.
 - **Where they live: committed, joined on the work-item ID.** Save under
   **`e2e/screenshots/<work-item-id>/<slug>.png`** — a **tracked** location (not the gitignored
   `test-results/` / `playwright-report/`), joined on the work-item ID exactly as plans are
@@ -92,11 +99,18 @@
   `loading-state.png`). Confirm they are **git-tracked** before marking done (see the untracked-file
   trap below).
 - **The code PR references every screenshot.** The generated code PR description must **embed or link
-  each committed screenshot** (a relative repo path or an inlined image), grouped so the reviewer can
-  tie each shot to the acceptance criterion it evidences. A screenshot committed but not referenced
-  from the PR is an **incomplete** change — the reviewer must not have to go hunting for it. (Real
-  corpus content that appears in a shot is impossible when the harness seam is used as required above;
-  if a shot ever quotes corpus content, anonymise it like any other PR artifact.)
+  each committed screenshot**, grouped so the reviewer can tie each shot to the acceptance criterion
+  it evidences. A screenshot committed but not referenced from the PR is an **incomplete** change —
+  the reviewer must not have to go hunting for it. (Real corpus content that appears in a shot is
+  impossible when the harness seam is used as required above; if a shot ever quotes corpus content,
+  anonymise it like any other PR artifact.)
+  - **Use a raw-bytes image URL — a repo-relative path or a plain blob URL will NOT render.** In a
+    GitHub PR **description** a repo-relative path (`e2e/screenshots/…/x.png`) resolves against the PR
+    URL and **breaks**, and a plain blob URL (`github.com/<owner>/<repo>/blob/<branch>/<path>`) renders
+    the GitHub **file page**, not the image. Only a **raw-bytes** URL renders inline: append
+    **`?raw=true`** to the blob URL, use the **`/raw/<branch>/<path>`** path form, or a
+    **`raw.githubusercontent.com/<owner>/<repo>/<branch>/<path>`** URL. (Human corrected this twice on
+    one PR.)
 
 ## What "done" looks like
 - A change to categorization behavior ships with new/updated unit tests, and the full

@@ -27,6 +27,16 @@
     (not `use`-prefixed), colocated in the component's folder — e.g. `facetFilters.ts` next to
     `SidebarFilters.tsx`, `emailFormatters.ts` next to `EmailList.tsx`. Do **not** stuff such
     helpers into the `use*` file. (Human rulings, stories 39 and 40.)
+    - **A colocated helper's filename must differ from its sibling component by MORE than
+      first-letter case.** Do **not** name the helper the camelCase of the component (e.g.
+      `selectedFilters.ts` next to `SelectedFilters.tsx`) — pick a distinct content name such as
+      `filterChips.ts`. On **case-insensitive filesystems** (Windows dev machines) `./SelectedFilters`
+      and `./selectedFilters` resolve to the **same module**, so the component's own import can
+      resolve to the helper and the component is **`undefined` at runtime** — every render-based test
+      fails with *"Element type is invalid … got: undefined"*. The existing pairs avoid this only by
+      chance because their helper names are different words (`SidebarFilters`/`facetFilters`,
+      `EmailList`/`emailFormatters`); the "named for its content" convention actively tempts the
+      camelCase-of-component name that breaks, so name deliberately.
   - **Placement:** keep these **pure, colocated helpers** in the component's own folder — not a
     generic `src/utils/`, and not `src/services/`. `src/services/` is the **service layer**
     generally — the I/O services (`services/graph`, `services/mail`, `services/projectMap`, …)
