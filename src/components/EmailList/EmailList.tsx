@@ -27,6 +27,8 @@ import type { Message } from '@microsoft/microsoft-graph-types';
 import type { CSSProperties } from 'react';
 import type { CategorizedEmail } from '../../models/categorization';
 import { typeLabel } from '../SidebarFilters/facetFilters';
+import { SelectedFilters } from '../SelectedFilters/SelectedFilters';
+import type { SelectedFilterChip } from '../SelectedFilters/filterChips';
 import { ResolveProjectDialog } from '../ResolveProjectDialog/ResolveProjectDialog';
 import { deriveKnownProjectNames } from '../ResolveProjectDialog/knownProjects';
 import { ConfirmDeleteDialog } from '../ConfirmDeleteDialog/ConfirmDeleteDialog';
@@ -63,8 +65,8 @@ const useStyles = makeStyles({
     paddingBlock: tokens.spacingVerticalM,
     paddingInline: tokens.spacingHorizontalL,
   },
-  // Bar above the list: the subject search box on the left, the bulk Delete button on the right,
-  // sharing one row (same height). The Delete button enables once 2+ rows are selected.
+  // Bar above the list: the subject search box (plus the active-filter chips) on the left, the bulk
+  // Delete button on the right, sharing one row. The Delete button enables once 2+ rows are selected.
   toolbar: {
     display: 'flex',
     justifyContent: 'space-between',
@@ -72,6 +74,15 @@ const useStyles = makeStyles({
     gap: tokens.spacingHorizontalM,
     marginBlockEnd: tokens.spacingVerticalS,
     minHeight: '32px',
+  },
+  // The left cluster: the search box with the selected-filter chips next to it (AC1). Wraps onto a
+  // second line when many filters are active rather than pushing the Delete button off the row.
+  toolbarLeft: {
+    display: 'flex',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: tokens.spacingHorizontalM,
+    minWidth: 0,
   },
   // Keep the search box a sensible fixed-ish width rather than stretching across the whole toolbar.
   searchBox: {
@@ -179,6 +190,10 @@ export interface EmailListProps {
   resolveProjectGuid: (guid: string, name: string) => Promise<void>;
   /** Deletes the given messages via Graph and refreshes the list (from `useCategorizedMail`). */
   deleteEmails: (ids: string[]) => Promise<void>;
+  /** The active sidebar filters as dismissible chips (from `useOrganizer`), shown by the search box. */
+  selectedFilters: SelectedFilterChip[];
+  /** Removes a single active filter when its chip's X is clicked (dispatches to `useOrganizer`). */
+  onRemoveFilter: (chip: SelectedFilterChip) => void;
 }
 
 /**
@@ -189,7 +204,14 @@ export interface EmailListProps {
  * live in `useEmailList` (`.claude/rules/frontend-architecture.md`). Tags are consumed verbatim from
  * the engine; nothing is re-categorized (`.claude/rules/categorization-domain.md`).
  */
-export function EmailList({ emails, allEmails, resolveProjectGuid, deleteEmails }: EmailListProps) {
+export function EmailList({
+  emails,
+  allEmails,
+  resolveProjectGuid,
+  deleteEmails,
+  selectedFilters,
+  onRemoveFilter,
+}: EmailListProps) {
   const styles = useStyles();
   const {
     visibleEmails,
@@ -367,15 +389,19 @@ export function EmailList({ emails, allEmails, resolveProjectGuid, deleteEmails 
         ) : (
           <>
             <div className={styles.toolbar}>
-              <SearchBox
-                className={styles.searchBox}
-                placeholder="Search by subject"
-                aria-label="Search e-mails by subject"
-                // Controlled: typing and the built-in clear (dismiss) button both flow through here.
-                // No debounce — the corpus is bounded and filtering is synchronous (story 56).
-                value={searchQuery}
-                onChange={(_event, data) => setSearchQuery(data.value)}
-              />
+              <div className={styles.toolbarLeft}>
+                <SearchBox
+                  className={styles.searchBox}
+                  placeholder="Search by subject"
+                  aria-label="Search e-mails by subject"
+                  // Controlled: typing and the built-in clear (dismiss) button both flow through here.
+                  // No debounce — the corpus is bounded and filtering is synchronous (story 56).
+                  value={searchQuery}
+                  onChange={(_event, data) => setSearchQuery(data.value)}
+                />
+                {/* The active-filter overview sits next to the search box (AC1); empty → renders nothing. */}
+                <SelectedFilters filters={selectedFilters} onRemove={onRemoveFilter} />
+              </div>
               <Button
                 appearance="primary"
                 icon={<Delete20Regular />}

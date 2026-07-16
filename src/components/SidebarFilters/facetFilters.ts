@@ -28,6 +28,18 @@ export function typeLabel(type: MessageType): string {
   return `${type.category} · ${type.subType}`;
 }
 
+/**
+ * The inverse of {@link typeKey}: reconstructs the {@link typeLabel} format (`category · subType`)
+ * from a stored {@link typeKey}. Used where only the key is available and the label cannot be looked
+ * up in a live options list — a selected type can be narrowed out of the current `typeOptions` (a
+ * project selection removes it), so its chip label must be rebuilt from the key itself. Splitting on
+ * the **first** `::` keeps it a faithful inverse (`category`/`subType` never contain the separator).
+ */
+export function typeLabelFromKey(key: string): string {
+  const separator = key.indexOf('::');
+  return separator === -1 ? key : `${key.slice(0, separator)} · ${key.slice(separator + 2)}`;
+}
+
 /** A single selectable facet row: the value to toggle on, its display label, and its e-mail count. */
 export interface FilterOption {
   /** A `project` string (verbatim) for the project facet, or a {@link typeKey} for the type facet. */

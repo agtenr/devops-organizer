@@ -89,6 +89,8 @@ export function Organizer({ useData = useOrganizer }: OrganizerProps = {}) {
     typeOptions,
     selectedTypeKeys,
     onToggleType,
+    selectedFilters,
+    removeFilter,
   } = useData();
 
   if (status === 'loading') {
@@ -151,6 +153,8 @@ export function Organizer({ useData = useOrganizer }: OrganizerProps = {}) {
             allEmails={categorized}
             resolveProjectGuid={resolveProjectGuid}
             deleteEmails={deleteEmails}
+            selectedFilters={selectedFilters}
+            onRemoveFilter={removeFilter}
           />
         </div>
       </div>

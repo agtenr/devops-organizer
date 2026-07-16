@@ -43,6 +43,8 @@ function data(overrides: Partial<OrganizerData> = {}): OrganizerData {
     typeOptions: [],
     selectedTypeKeys: new Set<string>(),
     onToggleType: vi.fn(),
+    selectedFilters: [],
+    removeFilter: vi.fn(),
     ...overrides,
   };
 }

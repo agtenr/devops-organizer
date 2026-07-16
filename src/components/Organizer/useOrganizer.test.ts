@@ -121,6 +121,48 @@ describe('useOrganizer — facet interdependence', () => {
   });
 });
 
+describe('useOrganizer — selectedFilters / removeFilter', () => {
+  it('derives a project-first, type-sorted chip list from the active selection', () => {
+    const { result } = renderHook(() => useOrganizer());
+    act(() => result.current.selectCustomer('Contoso'));
+
+    expect(result.current.selectedFilters).toEqual([]);
+
+    act(() => result.current.onSelectProject('Alpha'));
+    act(() => result.current.onToggleType(KEY_WI));
+    act(() => result.current.onToggleType(KEY_BUILD));
+
+    expect(result.current.selectedFilters.map((chip) => chip.label)).toEqual([
+      'Project: Alpha',
+      'Type: Build · Failed',
+      'Type: Work item · Assigned',
+    ]);
+  });
+
+  it('removeFilter on the project chip clears the project selection', () => {
+    const { result } = renderHook(() => useOrganizer());
+    act(() => result.current.selectCustomer('Contoso'));
+    act(() => result.current.onSelectProject('Alpha'));
+
+    const projectChip = result.current.selectedFilters.find((chip) => chip.facet === 'project')!;
+    act(() => result.current.removeFilter(projectChip));
+
+    expect(result.current.selectedProject).toBeNull();
+  });
+
+  it('removeFilter on a type chip removes just that type and keeps the others', () => {
+    const { result } = renderHook(() => useOrganizer());
+    act(() => result.current.selectCustomer('Contoso'));
+    act(() => result.current.onToggleType(KEY_BUILD));
+    act(() => result.current.onToggleType(KEY_WI));
+
+    const buildChip = result.current.selectedFilters.find((chip) => chip.value === KEY_BUILD)!;
+    act(() => result.current.removeFilter(buildChip));
+
+    expect([...result.current.selectedTypeKeys]).toEqual([KEY_WI]);
+  });
+});
+
 describe('useOrganizer — clear on tab switch', () => {
   it('clears both facet selections when the organization changes', () => {
     const { result } = renderHook(() => useOrganizer());
