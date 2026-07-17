@@ -37,8 +37,10 @@ of it for free.
 | Top-bar title reads "ADO E-mail Organizer" | covered | Task 1 (TopBar text) + Task 3 (harness stand-in) + unit test + screenshot |
 | Clicking the title refreshes the page with all filters cleared | covered | Task 1 (clickable title) + Task 2 (`refresh` in `useTopBar`); unit test asserts reload is invoked; real reload/clear verified by the live-verification DoD line (see OQ2) |
 
-Both ACs are covered. The only open questions are *how* to render the clickable title (OQ1) and
-*how* AC2's real-browser behavior is verified (OQ2) — neither narrows an AC.
+Both ACs are covered. Two design choices raised at plan review are now **resolved** by the reviewer
+(both option A — see *Resolved decisions*): the clickable title renders as a Fluent transparent
+`Button`, and AC2's real-browser behavior is verified by a unit test of the mechanism plus a manual
+live-verification step. Neither narrows an AC.
 
 ## Implementation approach
 Two source files, one harness touch, one new test, one screenshot.
@@ -52,12 +54,11 @@ Two source files, one harness touch, one new test, one screenshot.
   return { displayName, logout, refresh };
   ```
 - **`src/components/TopBar/TopBar.tsx`** — (a) change the title text to `ADO E-mail Organizer`;
-  (b) make the title an interactive control wired to `refresh`. Recommended: render the title as a
-  Fluent v9 **`Button` with `appearance="transparent"`** (prefer the first-class Fluent component
-  over a hand-rolled clickable — `frontend-architecture.md`), keeping the current visual weight
-  (size 500, semibold) and the `gridColumnStart: 2` centering, and preserving the heading landmark
-  via `role="heading"` / `aria-level={1}` (or by keeping an `<h1>` wrapper). See **OQ1** for the
-  exact semantics choice. Wire `onClick={refresh}`.
+  (b) make the title an interactive control wired to `refresh`. **Decided (reviewer, option A):**
+  render the title as a Fluent v9 **`Button` with `appearance="transparent"`** (the first-class
+  Fluent interactive component, over a hand-rolled clickable — `frontend-architecture.md`), keeping
+  the current visual weight (size 500, semibold) and the `gridColumnStart: 2` centering, and
+  preserving the heading landmark via `role="heading"` / `aria-level={1}`. Wire `onClick={refresh}`.
 - **`src/harness.tsx`** — update the static header stand-in's title text (currently
   `Azure DevOps E-mail Organizer`, `src/harness.tsx:166`) to `ADO E-mail Organizer` so the committed
   screenshot faithfully shows the new title. This story adds **no** field to `useOrganizer`'s return,
@@ -69,10 +70,11 @@ Two source files, one harness touch, one new test, one screenshot.
    `refresh: () => void` that calls `window.location.reload()`; update the hook's doc comment.
    *Rule:* `.claude/rules/frontend-architecture.md` (logic in the colocated hook, not JSX).
 2. **Update the title text and make it clickable.** Edit `src/components/TopBar/TopBar.tsx`: change
-   the literal to `ADO E-mail Organizer` and render the title as the interactive control from
-   *Implementation approach* / **OQ1**, wired to `refresh`. Keep the centered layout and heading
-   semantics. *Rule:* `.claude/rules/frontend-architecture.md` (Fluent v9 first-class component &
-   tokens/griffel styling; top-bar layout invariants — title centered, name + log-out on the right).
+   the literal to `ADO E-mail Organizer` and render the title as a Fluent `Button
+   appearance="transparent"` with `role="heading"`/`aria-level={1}` (resolved decision A), wired to
+   `refresh`. Keep the centered layout and heading semantics. *Rule:*
+   `.claude/rules/frontend-architecture.md` (Fluent v9 first-class component & tokens/griffel
+   styling; top-bar layout invariants — title centered, name + log-out on the right).
 3. **Keep the harness stand-in faithful.** Edit `src/harness.tsx` to update the stand-in header title
    text to `ADO E-mail Organizer`. *Rule:* `.claude/rules/testing.md` (harness/screenshot seam is the
    only sanctioned screenshot source; keep it faithful to the real UI).
@@ -80,8 +82,8 @@ Two source files, one harness touch, one new test, one screenshot.
    through the `FluentProvider` (`webLightTheme`) wrapper and mocking `@azure/msal-react` (same
    pattern as `src/hooks/useCategorizedMail.test.ts` — provide `useMsal` returning an `accounts`
    array and an `instance` with `logoutRedirect`). Assert: (a) the title reads
-   `ADO E-mail Organizer`; (b) the title is an interactive control (a `button`, or has
-   `role="heading"` per OQ1) and (c) activating it invokes `window.location.reload` (stub it, e.g.
+   `ADO E-mail Organizer`; (b) the title is an interactive `button` (with `role="heading"`) and
+   (c) activating it invokes `window.location.reload` (stub it, e.g.
    `Object.defineProperty(window, 'location', { value: { reload: vi.fn() }, writable: true })` or a
    `vi.spyOn`, and assert the spy was called on click). *Rule:* `.claude/rules/testing.md`
    (render through the provider wrapper; new test files must be git-tracked and included in the PR).
@@ -105,35 +107,35 @@ Two source files, one harness touch, one new test, one screenshot.
     **and** the screenshot spec.
   - Activating the title control calls `window.location.reload` exactly once → unit test with a
     stubbed `reload`.
-- **Live verification:** **needs manual live verification before merge** — jsdom cannot execute a real
-  reload and the harness header is a stand-in, so AC2's *actual* "page reloads and filters are
-  cleared" behavior is confirmed by a human in the running app (apply a customer/project/type filter,
-  click the title, confirm the page reloads to the default `All` tab with no facet/search/preview
-  state). See **OQ2** for the alternative (extending the harness/E2E seam) if the reviewer prefers an
-  automated check.
+- **Live verification:** **needs manual live verification before merge** (resolved decision A) —
+  jsdom cannot execute a real reload and the harness header is a stand-in, so AC2's *actual* "page
+  reloads and filters are cleared" behavior is confirmed by a human in the running app (apply a
+  customer/project/type filter, click the title, confirm the page reloads to the default `All` tab
+  with no facet/search/preview state). The reviewer declined extending the harness/E2E seam to the
+  real `TopBar` for this story.
 
 ## Considerations
 - **A refresh re-fetches mail.** `window.location.reload()` re-runs the MSAL/Graph load path, so the
   ≤~100-email corpus is fetched again. This is the intended, expected effect of "refresh the page"
   and the cost is trivial at this corpus size — noted as FYI, not a concern.
 - **Heading landmark.** Turning the title into a button risks losing the `<h1>` document landmark;
-  the plan preserves it (OQ1). Flagged so the reviewer notices the accessibility angle.
+  the plan preserves it via `role="heading"`/`aria-level={1}` on the Fluent `Button` (resolved
+  decision A).
 
 ## Assumptions & open questions
-- **OQ1 — How to render the clickable title.** Render it as a Fluent v9 **`Button
-  appearance="transparent"`** styled to match the current title, with `role="heading"`/`aria-level={1}`
-  to preserve the `<h1>` landmark (recommended, because it is the idiomatic first-class Fluent
-  interactive component per `frontend-architecture.md`) **or** keep `<Text as="h1">` and attach an
-  `onClick` + keyboard handler + `role="button"`/`tabIndex` to the heading itself (fewer visual
-  changes, but hand-rolls the interactive/keyboard behavior Fluent's Button gives for free)? Reply A
-  (transparent Button) or B (interactive heading).
-- **OQ2 — How to verify AC2's reload/clear in a real browser.** Accept a **unit test of the mechanism
-  (spy on `window.location.reload`) plus a manual live-verification DoD line** (recommended, because
-  the established harness seam mounts a *stand-in* header — not the real MSAL-backed `TopBar` — and
-  reload-clears-filters depends on in-memory state that the harness seeds from the URL, so a harness
-  E2E cannot faithfully assert it) **or** extend the harness/E2E seam to mount the real `TopBar` and
-  assert the reload/clear automatically (more faithful, but a new per-story seam extension the
-  testing rule steers away from)? Reply A (unit + manual) or B (extend the seam).
+Both open questions raised at plan review are now **resolved** — no open items remain.
+
+- **OQ1 — How to render the clickable title. → RESOLVED: option A.** Render it as a Fluent v9
+  **`Button appearance="transparent"`** styled to match the current title, with
+  `role="heading"`/`aria-level={1}` preserving the `<h1>` landmark — the idiomatic first-class Fluent
+  interactive component (`frontend-architecture.md`). (The alternative — a hand-rolled interactive
+  `<Text as="h1">` with `onClick`/keyboard/`role="button"` — was declined.)
+- **OQ2 — How to verify AC2's reload/clear in a real browser. → RESOLVED: option A.** A unit test of
+  the mechanism (spy on `window.location.reload`) plus a manual live-verification DoD line, because
+  the harness seam mounts a *stand-in* header (not the real MSAL-backed `TopBar`) and
+  reload-clears-filters depends on in-memory state the harness seeds from the URL, so a harness E2E
+  cannot faithfully assert it. (Extending the seam to mount the real `TopBar` was declined for this
+  story.)
 
 ## Definition of done
 - [ ] Top-bar title reads **"ADO E-mail Organizer"** (AC1).
