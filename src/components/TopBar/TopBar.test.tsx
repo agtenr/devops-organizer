@@ -20,7 +20,7 @@ function renderTopBar() {
   );
 }
 
-const TITLE = 'ADO E-mail Organizer';
+const TITLE = 'E-mail Organizer';
 
 describe('TopBar', () => {
   const originalLocation = window.location;
