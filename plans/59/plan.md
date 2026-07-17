@@ -154,23 +154,22 @@ E2E (`npm run test:e2e`) — so we test.
 
 ## Assumptions & open questions
 
-- **OQ1 — Filter-clearing mechanism.** Clear filters by a **full page reload**
-  (`window.location.reload()`), so the in-memory filter state resets on re-mount (recommended —
-  matches the AC wording "refreshes the page" literally and needs no cross-component wiring)
-  **or** implement an **SPA soft-reset** (a `resetFilters` callback on `useOrganizer` threaded to
-  the title, clearing selections without a real reload — snappier, no re-auth/re-fetch, but does
-  **not** literally "refresh the page")? Reply **A** (reload) or **B** (soft-reset).
-- **OQ2 — Clickable title element.** Render the title as a Fluent **`Button appearance="transparent"`**
-  (recommended — the reload is an *action*, and Button gives accessible keyboard/focus behaviour for
-  free) **or** as a Fluent **`Link`** (reads more like the conventional "logo/home" navigation link,
-  but `Link` is semantically navigation and wants an `href`)? Reply **A** (Button) or **B** (Link).
-- **OQ3 — AC2 real-browser verification.** Verify the *filter-clearing* by the **reload-wiring unit
-  test plus by-construction reasoning and a manual live check** (recommended — the harness models
-  filters via URL params, not live React state, and `reload()` preserves the query string, so a
-  harness E2E would *re-seed* rather than clear filters and would test harness-specific behaviour,
-  not the real mechanism) **or** invest in **extending the harness with live interactive filter
-  state** so an automated E2E can drive set-filter → click-title → assert-cleared? Reply **A**
-  (unit + construction + manual) or **B** (extend harness for an E2E).
+_All three open questions below were resolved by the reviewer at plan review (PR #50) — each with
+the recommended **Option A**. They are retained here as a record of the decisions taken._
+
+- **OQ1 — Filter-clearing mechanism. RESOLVED → A (full page reload).** Clear filters by a **full
+  page reload** (`window.location.reload()`), so the in-memory filter state resets on re-mount —
+  matches the AC wording "refreshes the page" literally and needs no cross-component wiring. (The
+  rejected alternative was an SPA soft-reset via a `resetFilters` callback on `useOrganizer`.)
+- **OQ2 — Clickable title element. RESOLVED → A (transparent Button).** Render the title as a Fluent
+  **`Button appearance="transparent"`** — the reload is an *action*, and Button gives accessible
+  keyboard/focus behaviour for free. (The rejected alternative was a Fluent `Link`.)
+- **OQ3 — AC2 real-browser verification. RESOLVED → A (unit + construction + manual).** Verify the
+  *filter-clearing* by the **reload-wiring unit test plus by-construction reasoning and a manual live
+  check** — the harness models filters via URL params, not live React state, and `reload()` preserves
+  the query string, so a harness E2E would *re-seed* rather than clear filters and would test
+  harness-specific behaviour, not the real mechanism. (The rejected alternative was extending the
+  harness with live interactive filter state for an automated E2E.)
 
 ## Files/areas affected
 
