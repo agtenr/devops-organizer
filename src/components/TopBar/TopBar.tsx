@@ -20,8 +20,10 @@ const useStyles = makeStyles({
   },
   title: {
     gridColumnStart: 2,
-    // Reset the default <h1> margin so the title sits vertically centered in the bar.
-    margin: 0,
+    // Restore the heading-sized type the plain <h1> Text had (Button defaults to body-sized text),
+    // so the clickable title reads as the app title, not a toolbar button.
+    fontSize: tokens.fontSizeBase500,
+    fontWeight: tokens.fontWeightSemibold,
   },
   userGroup: {
     gridColumnStart: 3,
@@ -36,16 +38,25 @@ const useStyles = makeStyles({
  * Top navigation bar. Fixed to the top of the page (does not scroll with content); shows the app
  * title centered, and the logged-in user's display name plus a log-out button on the right
  * (see `.claude/rules/frontend-architecture.md`).
+ *
+ * The title is a clickable control (a transparent Fluent Button) that refreshes the page, clearing
+ * all filters (story 60). It keeps the `<h1>` heading landmark via `role="heading"`/`aria-level`.
  */
 export function TopBar() {
   const styles = useStyles();
-  const { displayName, logout } = useTopBar();
+  const { displayName, logout, refresh } = useTopBar();
 
   return (
     <header className={styles.root}>
-      <Text as="h1" size={500} weight="semibold" align="center" className={styles.title}>
-        Azure DevOps E-mail Organizer
-      </Text>
+      <Button
+        appearance="transparent"
+        role="heading"
+        aria-level={1}
+        className={styles.title}
+        onClick={refresh}
+      >
+        ADO E-mail Organizer
+      </Button>
       <div className={styles.userGroup}>
         <Text weight="semibold">{displayName}</Text>
         <Button appearance="secondary" onClick={logout}>

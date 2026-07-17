@@ -163,7 +163,7 @@ function Harness() {
     <div className={styles.shell}>
       <header className={styles.header}>
         <Text as="h1" size={500} weight="semibold">
-          Azure DevOps E-mail Organizer
+          ADO E-mail Organizer
         </Text>
       </header>
       <Organizer useData={useMockOrganizer} />
