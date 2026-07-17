@@ -163,7 +163,7 @@ function Harness() {
     <div className={styles.shell}>
       <header className={styles.header}>
         <Text as="h1" size={500} weight="semibold">
-          ADO E-mail Organizer
+          E-mail Organizer
         </Text>
       </header>
       <Organizer useData={useMockOrganizer} />

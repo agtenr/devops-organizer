@@ -40,7 +40,8 @@ const useStyles = makeStyles({
  * (see `.claude/rules/frontend-architecture.md`).
  *
  * The title is a clickable control (a transparent Fluent Button) that refreshes the page, clearing
- * all filters (story 60). It keeps the `<h1>` heading landmark via `role="heading"`/`aria-level`.
+ * all filters (mechanism from story 60; title text set to "E-mail Organizer" in story 59). It keeps
+ * the `<h1>` heading landmark via `role="heading"`/`aria-level`.
  */
 export function TopBar() {
   const styles = useStyles();
@@ -55,7 +56,7 @@ export function TopBar() {
         className={styles.title}
         onClick={refresh}
       >
-        ADO E-mail Organizer
+        E-mail Organizer
       </Button>
       <div className={styles.userGroup}>
         <Text weight="semibold">{displayName}</Text>
