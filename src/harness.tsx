@@ -6,6 +6,7 @@ import {
   makeStaticStyles,
   makeStyles,
   tokens,
+  webDarkTheme,
   webLightTheme,
 } from '@fluentui/react-components';
 import type { CategorizedEmail } from './models/categorization';
@@ -171,9 +172,12 @@ function Harness() {
   );
 }
 
+// `?state=dark` renders the app in dark mode for screenshot/E2E (story 87).
+const isDark = stateParam === 'dark';
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <FluentProvider theme={webLightTheme} style={{ height: '100%' }}>
+    <FluentProvider theme={isDark ? webDarkTheme : webLightTheme} style={{ height: '100%' }}>
       <Harness />
     </FluentProvider>
   </StrictMode>,

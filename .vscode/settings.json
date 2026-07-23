@@ -1,6 +1,4 @@
 {
   "git.repositoryScanMaxDepth": 3,
-  "git.scanRepositories": [
-    ".claude/worktrees/",
-  ]
+  "git.scanRepositories": [".claude/worktrees/"]
 }

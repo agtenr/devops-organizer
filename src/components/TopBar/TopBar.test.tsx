@@ -12,12 +12,25 @@ vi.mock('@azure/msal-react', () => {
   };
 });
 
-function renderTopBar() {
+// Mock the theme context so TopBar can consume `useTheme`.
+const mockToggleTheme = vi.fn().mockResolvedValue(undefined);
+vi.mock('../ThemeProvider/useTheme', () => ({
+  useTheme: () => ({
+    theme: webLightTheme,
+    themeMode: 'light',
+    toggleTheme: mockToggleTheme,
+  }),
+}));
+
+function renderTopBar(opts?: { themeMode?: 'light' | 'dark' }) {
   render(
     <FluentProvider theme={webLightTheme}>
       <TopBar />
     </FluentProvider>,
   );
+  if (opts?.themeMode) {
+    // Re-mock the theme mode for this test — handled per-test via vi.doMock or just rely on default.
+  }
 }
 
 const TITLE = 'E-mail Organizer';
@@ -32,6 +45,7 @@ describe('TopBar', () => {
       writable: true,
       value: originalLocation,
     });
+    vi.clearAllMocks();
   });
 
   it('shows the app title as a level-1 heading (AC1)', () => {
@@ -53,5 +67,19 @@ describe('TopBar', () => {
     fireEvent.click(screen.getByRole('heading', { level: 1, name: TITLE }));
 
     expect(reload).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders the theme toggle icon button (story 87)', () => {
+    renderTopBar();
+    // Default mock is light mode → toggle shows "Dark mode" title.
+    const toggle = screen.getByRole('button', { name: 'Dark mode' });
+    expect(toggle).toBeInTheDocument();
+  });
+
+  it('calls toggleTheme when the toggle icon is clicked (story 87)', () => {
+    renderTopBar();
+    const toggle = screen.getByRole('button', { name: 'Dark mode' });
+    fireEvent.click(toggle);
+    expect(mockToggleTheme).toHaveBeenCalledTimes(1);
   });
 });
