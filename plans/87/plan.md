@@ -81,8 +81,9 @@ The `ThemeProvider` sits inside the auth gate in `App.tsx`, wrapping the shell. 
 4. **Add dark/light toggle icon to TopBar** — `src/components/TopBar/TopBar.tsx`,
    `src/components/TopBar/useTopBar.ts`
    Import `useTheme` and render a `title="Dark mode"` / `title="Light mode"` icon button using
-   `<MoonRegular>` / `<SunRegular>` in the user group (between display name and Log out).
-   Keep the hook thin — the toggle call lives in the provider, not the hook.
+   `<MoonRegular>` / `<SunRegular>` placed **inside the user group** (between display name and Log
+   out). The icon shows the **target theme** (Sun = click to switch to light, Moon = click to
+   switch to dark). Keep the hook thin — the toggle call lives in the provider, not the hook.
    Rules: `.claude/rules/frontend-architecture.md` (Fluent UI v9 components).
 
 5. **Update harness for e2e** — `src/harness.tsx`
@@ -102,15 +103,11 @@ The `ThemeProvider` sits inside the auth gate in `App.tsx`, wrapping the shell. 
 
 ## Assumptions & open questions
 
-1. **Toggle placement in the user group** — the icon button goes between the display name and the
-   Log out button (e.g. `Ada Lovelace | 🌙 | Log out`), keeping the three-column grid layout
-   intact. Place it in its own group to the right of the user group (e.g. `Ada Lovelace | Log out |
-   🌙`)? Reply **inside** or **outside**.
+All assumptions resolved by review:
 
-2. **Icon choice** — `<SunRegular>` for "switch to light" and `<MoonRegular>` for "switch to dark"
-   (the icon indicates the *target* theme, i.e., what clicking will produce). Use the *current*
-   theme's icon instead (sun = currently light, moon = currently dark)? Reply **target** or
-   **current**.
+1. **Toggle placement** — ratified: **inside** the user group (between display name and Log out).
+2. **Icon semantics** — ratified: **target** theme icon (Sun = click to switch to light,
+   Moon = click to switch to dark).
 
 ## Considerations
 
