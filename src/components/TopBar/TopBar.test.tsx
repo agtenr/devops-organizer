@@ -13,30 +13,35 @@ vi.mock('@azure/msal-react', () => {
 });
 
 // Mock the theme context so TopBar can consume `useTheme`.
+// A mutable state variable lets per-test code override the theme mode (the mock factory hoists, but the
+// getter runs at call time).
 const mockToggleTheme = vi.fn().mockResolvedValue(undefined);
+let mockThemeMode: 'light' | 'dark' = 'light';
 vi.mock('../ThemeProvider/useTheme', () => ({
   useTheme: () => ({
     theme: webLightTheme,
-    themeMode: 'light',
+    themeMode: (mockThemeMode as 'light' | 'dark') ?? 'light',
     toggleTheme: mockToggleTheme,
   }),
 }));
 
-function renderTopBar(opts?: { themeMode?: 'light' | 'dark' }) {
+function renderTopBar() {
   render(
     <FluentProvider theme={webLightTheme}>
       <TopBar />
     </FluentProvider>,
   );
-  if (opts?.themeMode) {
-    // Re-mock the theme mode for this test — handled per-test via vi.doMock or just rely on default.
-  }
 }
 
 const TITLE = 'E-mail Organizer';
 
 describe('TopBar', () => {
   const originalLocation = window.location;
+
+  beforeEach(() => {
+    // Reset mutable mock state so each test starts in light mode.
+    mockThemeMode = 'light';
+  });
 
   afterEach(() => {
     // Restore the real location object stubbed out by the reload test.
@@ -81,5 +86,13 @@ describe('TopBar', () => {
     const toggle = screen.getByRole('button', { name: 'Dark mode' });
     fireEvent.click(toggle);
     expect(mockToggleTheme).toHaveBeenCalledTimes(1);
+  });
+
+  it('switches icon from moon to sun when themeMode changes to dark (story 87)', () => {
+    mockThemeMode = 'dark';
+    renderTopBar();
+    // Dark mode → toggle shows "Light mode" title (target = sun icon).
+    const toggle = screen.getByRole('button', { name: 'Light mode' });
+    expect(toggle).toBeInTheDocument();
   });
 });

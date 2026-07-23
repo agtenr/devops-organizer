@@ -79,21 +79,23 @@ describe('fetchThemePreference', () => {
 describe('saveThemePreference', () => {
   it('PUTs the correct JSON payload and path for dark mode', async () => {
     const put = vi.fn();
-    const { client, lastPutBody } = fakeClient({ put });
+    const { client, lastPath, lastPutBody } = fakeClient({ put });
 
     await saveThemePreference(client, 'dark');
 
     expect(put).toHaveBeenCalledTimes(1);
+    expect(lastPath()).toBe('/me/drive/special/approot:/theme-preference.json:/content');
     expect(JSON.parse(lastPutBody() as string)).toEqual({ theme: 'dark' });
   });
 
-  it('PUTs the correct JSON payload for light mode', async () => {
+  it('PUTs the correct JSON payload and path for light mode', async () => {
     const put = vi.fn();
-    const { client, lastPutBody } = fakeClient({ put });
+    const { client, lastPath, lastPutBody } = fakeClient({ put });
 
     await saveThemePreference(client, 'light');
 
     expect(put).toHaveBeenCalledTimes(1);
+    expect(lastPath()).toBe('/me/drive/special/approot:/theme-preference.json:/content');
     expect(JSON.parse(lastPutBody() as string)).toEqual({ theme: 'light' });
   });
 });
