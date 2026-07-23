@@ -1,0 +1,24 @@
+{
+  "ado": {
+    "org": "https://dev.azure.com/agtenrdevgit",
+    "project": "devops-organizer"
+  },
+  "codeHost": "github",
+  "github": {
+    "repo": "agtenr/devops-organizer"
+  },
+  "integrationBranch": "main",
+  "planBranchPrefix": "plan/",
+  "lessonsBranch": "aind/lessons",
+  "worktree": {
+    "enabled": false,
+    "worktreeRoot": ".claude/worktrees",
+    "copyFiles": [
+      ".claude/aind.env",
+      ".claude/settings.local.json",
+      ".env",
+      "src/services/categorization/__fixtures__",
+      "design/demo-messages"
+    ]
+  }
+}
