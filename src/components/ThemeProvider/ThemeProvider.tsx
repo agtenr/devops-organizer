@@ -33,7 +33,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     fetchThemePreference(client)
       .then((saved) => setThemeMode(saved))
       .catch((err) => console.error('Failed to fetch theme preference:', err));
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetch only on mount; accounts stable after auth.
   }, [accounts]);
 
   const toggleTheme = useCallback(() => {
