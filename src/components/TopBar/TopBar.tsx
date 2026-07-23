@@ -1,4 +1,5 @@
 import { Button, Text, makeStyles, tokens } from '@fluentui/react-components';
+import { WeatherMoonRegular, WeatherSunnyRegular } from '@fluentui/react-icons';
 import { useTopBar } from './useTopBar';
 
 const useStyles = makeStyles({
@@ -36,16 +37,23 @@ const useStyles = makeStyles({
 
 /**
  * Top navigation bar. Fixed to the top of the page (does not scroll with content); shows the app
- * title centered, and the logged-in user's display name plus a log-out button on the right
- * (see `.claude/rules/frontend-architecture.md`).
+ * title centered, and the logged-in user's display name, a dark/light mode toggle icon, and a log-out
+ * button on the right (see `.claude/rules/frontend-architecture.md`).
  *
  * The title is a clickable control (a transparent Fluent Button) that refreshes the page, clearing
  * all filters (mechanism from story 60; title text set to "E-mail Organizer" in story 59). It keeps
  * the `<h1>` heading landmark via `role="heading"`/`aria-level`.
+ *
+ * The toggle icon shows the **target** theme (Sun = click to switch to light, Moon = click to
+ * switch to dark), placed inside the user group between display name and Log out (story 87).
  */
 export function TopBar() {
   const styles = useStyles();
-  const { displayName, logout, refresh } = useTopBar();
+  const { displayName, logout, refresh, themeMode, toggleTheme } = useTopBar();
+
+  // Show the icon for the *target* theme (click → switch to that).
+  const toggleIcon = themeMode === 'dark' ? <WeatherSunnyRegular /> : <WeatherMoonRegular />;
+  const toggleTitle = themeMode === 'dark' ? 'Light mode' : 'Dark mode';
 
   return (
     <header className={styles.root}>
@@ -60,6 +68,7 @@ export function TopBar() {
       </Button>
       <div className={styles.userGroup}>
         <Text weight="semibold">{displayName}</Text>
+        <Button appearance="subtle" icon={toggleIcon} title={toggleTitle} onClick={toggleTheme} />
         <Button appearance="secondary" onClick={logout}>
           Log out
         </Button>
