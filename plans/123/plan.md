@@ -18,22 +18,30 @@ width does the work.
 - **Max width cap = `400px`.** Roomier than today's 280px; fits the placeholder and ≥25 chars with margin.
 - **Placeholder text is unchanged** (`"Search by subject"`). The AC's `"DevOps e-mail organizer"` is a
   *length* example (~23 chars), not new copy.
-- **Pure CSS**, via `width: '100%'` + `maxWidth: '400px'` — no media query, no JS breakpoint.
-- **No `minWidth` floor** — on very narrow screens the box shrinks with its container (true full width),
-  accepted as the desired behavior for AC3.
+- **Pure CSS** (griffel), no media query and no JS breakpoint — the flex layout decides.
+- On small screens the box takes the **full available width** (fills its cluster); on wide screens it is
+  capped at 400px.
+
+> **Reconciled after build (provenance: deviation ratified by the human on PR #55, 2026-09-16).** The
+> mechanism first drafted here — a single rule `searchBox: { width: '100%', maxWidth: '400px' }` with
+> `toolbarLeft` left untouched — does **not** work in a real browser: `toolbarLeft` is a shrink-to-fit
+> flex item with no `flexGrow`, so `width: 100%` resolves against its collapsed content width and the box
+> rendered at ~173px. The shipped mechanism instead makes the box **flex-grow to fill** its cluster,
+> capped at 400px, and grows the cluster to give it room. This section and the ones below have been
+> updated to record the mechanism that actually shipped.
 
 ## Keep it simple
 
-- **Non-goal: no media queries or responsive JS.** Fluid `width: '100%'` + a px `maxWidth` already yields
-  full-width-when-narrow / capped-when-wide from the container size alone. The project has no existing
-  breakpoint pattern; this story does not introduce one.
-- **Non-goal: no `minWidth` floor.** Deliberately omitted (decided live) so the box goes edge-to-edge on
-  the smallest screens.
+- **Non-goal: no media queries or responsive JS.** The flex layout (a grow-to-fill box capped at 400px)
+  yields full-width-when-narrow / capped-when-wide from the container size alone. The project has no
+  existing breakpoint pattern; this story does not introduce one.
 - **Non-goal: placeholder copy and search behaviour are untouched.** Only the box's width styling changes;
   the controlled value/onChange, clear button, and subject-filtering logic (`useEmailList` / `emailSearch`)
   stay exactly as they are.
-- **Non-goal: no change to the surrounding toolbar layout.** `toolbar` / `toolbarLeft` (the flex row that
-  wraps the chips beside the box) already wrap correctly; the box remains a flex child of `toolbarLeft`.
+- **Reconciled non-goal → touched:** the surrounding toolbar layout was originally fenced off, but the
+  shipped fix adds `flexGrow: 1` to `toolbarLeft` (so the cluster claims the row's free space for the box
+  to grow into). No other toolbar behaviour changes — the chips still wrap and the box remains a flex child
+  of `toolbarLeft`.
 
 ## AC coverage
 
@@ -41,16 +49,21 @@ width does the work.
 |----|--------|-------|
 | Placeholder is visible | covered | Task 1 — fluid width means the box is never squeezed below its container; the 400px desktop cap comfortably fits `"Search by subject"`. Verified in the browser (Task 2). |
 | Box handles ≥3 words / ~25 chars (e.g. `DevOps e-mail organizer`) | covered | Task 1 — 400px cap fits ≥25 chars; on small screens full container width. Verified (Task 2). |
-| On smaller screens the box takes the full width | covered | Task 1 — `width: '100%'` (no `minWidth`); the box fills its container when narrow. Verified in the browser (Task 2), which is the only place layout can actually be asserted. |
+| On smaller screens the box takes the full width | covered | Task 1 — the box flex-grows to fill its cluster (`flexGrow: 1`, `minWidth: 0`) when narrow. Verified in the browser (Task 2), which is the only place layout can actually be asserted. |
 
 ## Implementation approach
 
-One change, one file:
+One file (`src/components/EmailList/EmailList.tsx`), two griffel rules in the `useStyles` block:
 
-- **`src/components/EmailList/EmailList.tsx`** — in the `useStyles` block, change the `searchBox` rule
-  from `{ width: '280px', maxWidth: '50%' }` to `{ width: '100%', maxWidth: '400px' }`, and update the
-  adjacent comment to reflect the new fluid-with-cap intent. The `SearchBox` JSX (`className={styles.searchBox}`,
-  `placeholder="Search by subject"`, `aria-label="Search e-mails by subject"`) is unchanged.
+- **`searchBox`** — from `{ width: '280px', maxWidth: '50%' }` to
+  `{ flexGrow: 1, flexBasis: 0, minWidth: 0, maxWidth: '400px' }`: the box grows to fill its cluster
+  (full width when narrow) but is capped at 400px on wide screens; `minWidth: 0` lets it shrink below its
+  content width on the narrowest rows.
+- **`toolbarLeft`** — add `flexGrow: 1` so the cluster claims the toolbar row's free space (minus the
+  Delete button), giving the box room to grow into.
+
+The `SearchBox` JSX (`className={styles.searchBox}`, `placeholder="Search by subject"`,
+`aria-label="Search e-mails by subject"`) is unchanged.
 
 Because acceptance is inherently visual (widths, full-width-when-narrow, placeholder visibility), the real
 verification is a **Playwright E2E assertion in a real browser plus a committed screenshot** — jsdom has no
@@ -60,9 +73,10 @@ never the signed-in app.
 ## Task breakdown
 
 1. **Widen the search box (the CSS change).** Edit the `searchBox` griffel rule in
-   `src/components/EmailList/EmailList.tsx` to `{ width: '100%', maxWidth: '400px' }` and refresh its
-   comment. *Rules: `.claude/rules/frontend-architecture.md`* — styling stays in griffel/Fluent tokens
-   (a fixed px cap is acceptable here; there is no Fluent token for an arbitrary max width), logic-free,
+   `src/components/EmailList/EmailList.tsx` to `{ flexGrow: 1, flexBasis: 0, minWidth: 0, maxWidth: '400px' }`
+   and add `flexGrow: 1` to `toolbarLeft`; refresh their comments. *Rules:
+   `.claude/rules/frontend-architecture.md`* — styling stays in griffel/Fluent tokens (a fixed px cap is
+   acceptable here; there is no Fluent token for an arbitrary max width), logic-free,
    type-checks/builds/lints/formats clean ("what done looks like").
 
 2. **Real-browser verification + committed screenshot.** *Rules: `.claude/rules/testing.md`.*
@@ -82,11 +96,12 @@ never the signed-in app.
 
 ## Considerations
 
-- **Flex interaction (FYI, already handled by the design).** The box is a flex child of `toolbarLeft`
-  (`display: flex; flexWrap: wrap; gap; minWidth: 0`). `width: '100%'` + `maxWidth: '400px'` resolves to
-  `min(container, 400px)`: on desktop the box is 400px and the filter chips sit beside it; when the row is
-  too narrow the box goes full width and the chips wrap below — the existing wrap behaviour, preserved. No
-  change to `toolbar`/`toolbarLeft` is needed.
+- **Flex interaction (the crux — validated in a real browser).** The box is a flex child of `toolbarLeft`,
+  which is itself a shrink-to-fit flex child of `toolbar`. Growing the box requires `toolbarLeft` to grow
+  first (`flexGrow: 1`), otherwise `toolbarLeft` collapses to content width and the box never fills. With
+  `toolbarLeft` growing and `searchBox` `flexGrow: 1 / flexBasis: 0 / maxWidth: 400px`: on desktop the box
+  hits the 400px cap (chips sit beside it); when the row is too narrow the box fills its cluster and the
+  chips wrap below — the existing wrap behaviour, preserved.
 - **No unit-test impact.** The categorization service and search *logic* (`emailSearch.ts`,
   `useEmailList.ts`) are untouched; existing Vitest suites should stay green. The only new automated
   coverage is the E2E width assertion, since width is not observable in jsdom.
@@ -98,16 +113,21 @@ never the signed-in app.
 - **At what altitude:** **E2E (Playwright), real browser.** This is the correct and *only* altitude that
   can verify the acceptance here — jsdom component tests cannot see width or full-width-when-narrow, so no
   new jsdom component test is warranted for this change.
-- **Must-cover (each with expected outcome):**
-  - Wide viewport → search box rendered width **≤ ~400px** (cap holds) and placeholder visible.
-  - Narrow viewport (~380px) → search box width **> the wide-viewport width** and fills the toolbar's left
-    cluster (fluid full-width — AC3).
+- **Must-cover (each with expected outcome):** *(measure the styled `.fui-SearchBox` root, not the inner
+  input, together with its cluster/parent so "capped" vs "fills" is distinguishable.)*
+  - Wide viewport → search box root width **≈ 400px** (cap holds) and **strictly less than its cluster
+    width** (capped, not filling the wide toolbar); placeholder visible.
+  - Small viewport (~600px) → search box root width **< the wide-viewport width** (it shrank below the cap)
+    **and ≈ its cluster width** (fills the available width — AC3). *(The narrow box is necessarily
+    **smaller** than the capped wide box, not larger — the original "narrow > wide" expectation was
+    self-contradictory with a 400px cap and has been corrected.)*
 - **Live verification:** the committed harness screenshot(s) are the durable visual evidence; no separate
   manual live-verification gate is required beyond running `npm run test:e2e`.
 
 ## Definition of done
 
-- [ ] `searchBox` style in `EmailList.tsx` is `{ width: '100%', maxWidth: '400px' }`; the `50%` cap is gone.
+- [ ] `searchBox` style in `EmailList.tsx` is `{ flexGrow: 1, flexBasis: 0, minWidth: 0, maxWidth: '400px' }`
+      (and `toolbarLeft` has `flexGrow: 1`); the `50%` cap is gone.
 - [ ] Placeholder `"Search by subject"` is fully visible (AC1), verified in a real browser.
 - [ ] The box fits ≥25 chars / 3 words on desktop within the 400px cap (AC2), verified in a real browser.
 - [ ] On a narrow viewport the box takes the full available width (AC3), verified by the E2E assertion.
@@ -119,7 +139,7 @@ never the signed-in app.
 
 ## Files/areas affected
 
-- `src/components/EmailList/EmailList.tsx` — the `searchBox` griffel rule (and its comment).
+- `src/components/EmailList/EmailList.tsx` — the `searchBox` and `toolbarLeft` griffel rules (and comments).
 - `e2e/harness.spec.ts` — new responsive-width assertion for the search box.
 - `e2e/screenshots/123/` — new committed screenshot(s) of the widened box.
 
