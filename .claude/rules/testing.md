@@ -44,6 +44,12 @@
     `src/setupTests.ts` — extend that shared setup (it already stubs `ResizeObserver`;
     add `matchMedia`/`IntersectionObserver` there too as new components need them) rather
     than working around the crash per test. (Story 48.)
+  - **Vary a mocked context provider per test via a mutable module-level variable (optional).**
+    Where `vi.doMock` is awkward, a mutable module-level variable (e.g. `let mockThemeMode`) **read by
+    a hoisted `vi.mock` factory through a getter** lets per-test code vary a mocked context provider:
+    the factory hoists but the getter runs at **call time**, so each test sets the variable before it
+    renders. This avoids the "dead branch" anti-pattern where a render-helper parameter never takes
+    effect because the mock is fixed at module level.
 
 ## UI / end-to-end testing
 - **Playwright** is **set up** (no longer aspirational). Config is `playwright.config.ts`;
@@ -59,6 +65,16 @@
   mock-auth path** and **inject the data hook** on the shell/`Organizer` (plus a static header
   stand-in) so Playwright renders the real gated shell with deterministic data. Prefer this shared
   seam over a new per-story hack. (Story 46.)
+  - **Know the harness seam's two blind spots before planning to E2E through it.** The harness
+    (`/harness.html`, `src/harness.tsx`) renders the real shell, but it is **not** a live app in two
+    respects. (a) It models filter/loading state via URL params (`?state=…`) with **no-op selection
+    callbacks** — not live React state — so an acceptance criterion that depends on live in-memory
+    state *transitions* (e.g. an interaction that **clears** in-memory filters) **cannot** be faithfully
+    driven through it. (b) It substitutes a **static header stand-in** for the MSAL-backed `TopBar`, so
+    a story whose acceptance lives **on the `TopBar` itself** is not faithfully screenshot/E2E-verifiable
+    through the harness. When a story lands in either case, a planner should recognize it and choose a
+    different verification path (construction reasoning + a component unit test + a manual live check)
+    rather than assuming the harness can E2E it.
 - **jsdom has no layout/CSS engine — it cannot verify visual acceptance.** A jsdom component
   test happily passes DOM/role/text assertions for an element that is present but **0px wide**,
   a panel that never actually became visible, or columns rendered at the wrong widths. So a story

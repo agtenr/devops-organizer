@@ -100,6 +100,22 @@
   close the preview. Ratified in story 40 and pinned in code (`useEmailList.ts` +
   `useEmailList.test.ts`); recorded here so a later story's acceptance criterion cannot silently
   reverse it. (Ratified story 40; near-reversal caught in story 55.)
+- **Plan a CSS/flex layout change by its intended behavior, not a pinned griffel mechanism.** For a
+  layout/sizing change, state the **intended behavior** (what should size how, and its real-browser
+  verification) rather than fixing an exact, unvalidated griffel mechanism into the permanent plan
+  doc. An untested mechanism can simply be **wrong** in a browser — e.g. `width: 100%` resolving
+  against a shrink-to-fit flex parent that has no `flexGrow` renders far narrower than intended, and
+  the real fix is then forced to touch a file the plan had fenced off as a non-goal. Complements the
+  jsdom-vs-real-browser rule in `testing.md` (that rule covers *verifying*; this covers *planning*).
+  - **Sanity-check sizing acceptance/test expectations logically.** Before pinning a sizing
+    expectation, check it holds by construction — e.g. a narrow-viewport width cannot exceed a
+    wide-viewport width when a fixed `max-width` cap holds at the wide end.
+- **A title/heading that is ALSO a clickable action: wrap a button in a heading element.** For the
+  recurring "heading that activates something" case, prefer a heading wrapping a native button
+  (`<h1><button>…</button></h1>`, as Fluent's own `Accordion` header does) — this keeps **both** the
+  heading landmark **and** the native button role/announcement. Do **not** use a Fluent `Button` with
+  `role="heading"`/`aria-level`: it preserves the landmark but **overrides the button role**, so
+  assistive tech announces a heading, not an activatable control (no cue that it does anything).
 
 ## Conventions
 - **Fluent v9 `DataGrid` `resizableColumns` auto-fits by default.** Enabling `resizableColumns`
