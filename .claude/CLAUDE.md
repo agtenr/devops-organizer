@@ -21,14 +21,21 @@ manual step is pasting your PAT into `.claude/aind.env`.
 
 | Key | Value |
 |---|---|
+| `tracker` | `ado` — work items live in Azure DevOps Boards |
 | `ado.org` | `https://dev.azure.com/agtenrdevgit` |
 | `ado.project` | `devops-organizer` |
+| `ado.workItemType` | `User Story` (type new stories are created as) |
 | `codeHost` | `github` |
 | `github.repo` | `agtenr/devops-organizer` |
 | `integrationBranch` | `main` |
 | `planBranchPrefix` | `plan/` |
 | `lessonsBranch` | `aind/lessons` |
-| `worktree` | parallel-work settings — see the section below |
+| `flow.mode` | `local` — plan + code share one branch; plan reviewed in-editor (no plan PR). See the flow note below. |
+| `telemetry.enabled` | `false` (per-phase token/time tracking off) |
+| `stateMap` | `{}` (native-State board mirror off; run `/aind:map-states` to enable) |
+| `planning.mode` | `auto` |
+| `research.dir` | `.aind/research` (where `/aind:research` writes findings) |
+| `worktree` | parallel-work settings — see the section below (disabled: incompatible with `local` flow) |
 
 **`.claude/aind.env`** (gitignored — secrets + per-user only):
 
@@ -46,10 +53,17 @@ manual step is pasting your PAT into `.claude/aind.env`.
 - **Plan location.** Plans live at `/plans/<work-item-id>/plan.md` and are permanent living
   documentation — never delete them after the code ships.
 - **Reach branches through PRs.** Never construct or assume a branch name to find an artifact;
-  resolve via the PR and the `AIND-LINKS` block. The work-item ID is the join value.
+  resolve via the PR and the `AIND-LINKS` block. The work-item ID is the join value. *(This project
+  runs the `local` flow, the one sanctioned exception: before its single code PR exists, the story
+  branch is found by the `<type>/<id>-…` convention; once the PR exists, the PR-as-handle rule
+  resumes.)*
 - **Don't author stories.** Intake suggests fixes; the human owns the story text.
 
 ## Parallel work with worktrees (optional)
+
+> **Currently unavailable:** this project runs the **`local` flow** (`flow.mode: "local"`), which is
+> single-tree and **mutually exclusive** with worktrees. To use worktrees, first switch back to the
+> two-PR flow (`flow.mode: "pr"`), then enable the block below.
 
 To work several stories at once from one clone (e.g. implement one while planning the next), opt into
 git worktrees via the **`worktree`** block of `.claude/aind.settings.json`: set

@@ -1,7 +1,9 @@
 {
+  "tracker": "ado",
   "ado": {
     "org": "https://dev.azure.com/agtenrdevgit",
-    "project": "devops-organizer"
+    "project": "devops-organizer",
+    "workItemType": "User Story"
   },
   "codeHost": "github",
   "github": {
@@ -10,6 +12,20 @@
   "integrationBranch": "main",
   "planBranchPrefix": "plan/",
   "lessonsBranch": "aind/lessons",
+  "telemetry": {
+    "enabled": false,
+    "durationField": "Custom.AindDurationSec"
+  },
+  "stateMap": {},
+  "planning": {
+    "mode": "auto"
+  },
+  "flow": {
+    "mode": "local"
+  },
+  "research": {
+    "dir": ".aind/research"
+  },
   "worktree": {
     "enabled": false,
     "worktreeRoot": ".claude/worktrees",
@@ -19,6 +35,7 @@
       ".env",
       "src/services/categorization/__fixtures__",
       "design/demo-messages"
-    ]
+    ],
+    "symlinkDirs": []
   }
 }

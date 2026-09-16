@@ -23,3 +23,6 @@ design/demo-messages
 # notification corpus, so they stay local and are never committed (see the fixtures
 # README). The README itself is tracked; the derived .json fixtures are not.
 src/services/categorization/__fixtures__/*.json
+.aind/usage/
+.aind/research/
+.claude/worktrees/
