@@ -206,6 +206,49 @@ test('the subject search box sits above the list on the same height as the Delet
   expect(searchBox.y).toBeLessThan(firstRow.y);
 });
 
+test('the search box is capped on wide screens and goes fluid full-width on narrow ones (AB#123)', async ({
+  page,
+}) => {
+  // Headroom for the one-time cold Vite dep-optimization the first harness navigation blocks on (same
+  // reason the resize test above is marked slow) — otherwise the first assertion can race the mount.
+  test.slow();
+  await page.goto('/harness.html');
+
+  // Measure the styled SearchBox ROOT (`.fui-SearchBox`) — not the inner input, whose width excludes
+  // the search/clear icons — together with its cluster (`toolbarLeft`, its parent) so we can tell
+  // "capped" (root < cluster) from "fluid-filling" (root ≈ cluster).
+  const search = page.getByLabel('Search e-mails by subject');
+  await expect(search).toBeVisible({ timeout: 30000 });
+  await expect(page.getByPlaceholder('Search by subject')).toBeVisible();
+
+  const measure = () =>
+    page.evaluate(() => {
+      const input = document.querySelector('[aria-label="Search e-mails by subject"]')!;
+      const root = input.closest('.fui-SearchBox')!;
+      return {
+        root: Math.round(root.getBoundingClientRect().width),
+        cluster: Math.round(root.parentElement!.getBoundingClientRect().width),
+      };
+    });
+
+  // Wide (the default Desktop Chrome 1280px viewport): the box sits at its 400px cap and does NOT
+  // stretch across the whole (much wider) toolbar cluster.
+  const wide = await measure();
+  expect(wide.root).toBeGreaterThan(395);
+  expect(wide.root).toBeLessThanOrEqual(405);
+  expect(wide.root).toBeLessThan(wide.cluster - 50); // capped, not filling the wide toolbar
+  await page.screenshot({ path: 'e2e/screenshots/123/search-box-widened.png' });
+
+  // Small screen (600px): the box goes fluid — it shrinks below the 400px cap and fills its cluster
+  // (root ≈ cluster width), taking the full available width instead of the old `maxWidth: 50%` clip (AC3).
+  await page.setViewportSize({ width: 600, height: 720 });
+  await page.waitForTimeout(300);
+  const small = await measure();
+  expect(small.root).toBeLessThan(wide.root); // shrank with the container — no longer a fixed cap
+  expect(Math.abs(small.root - small.cluster)).toBeLessThan(8); // fills its cluster — full available width
+  await page.screenshot({ path: 'e2e/screenshots/123/search-box-small-screen.png' });
+});
+
 test('typing in the search box filters the list by subject, and clearing restores it (AB#56)', async ({
   page,
 }) => {

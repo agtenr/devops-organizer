@@ -77,17 +77,25 @@ const useStyles = makeStyles({
   },
   // The left cluster: the search box with the selected-filter chips next to it (AC1). Wraps onto a
   // second line when many filters are active rather than pushing the Delete button off the row.
+  // `flexGrow: 1` lets the cluster claim the toolbar row's free space (minus the Delete button) so the
+  // search box inside it can be fluid on small screens (story 123).
   toolbarLeft: {
     display: 'flex',
     alignItems: 'center',
     flexWrap: 'wrap',
     gap: tokens.spacingHorizontalM,
     minWidth: 0,
+    flexGrow: 1,
   },
-  // Keep the search box a sensible fixed-ish width rather than stretching across the whole toolbar.
+  // Fluid search box: grows to fill the left cluster so on small screens it takes the full available
+  // width (no more `maxWidth: 50%` clip), but `maxWidth: 400px` caps it on wide screens so it fits
+  // ~25 chars / 3 words and its placeholder without stretching across the whole toolbar. `minWidth: 0`
+  // lets it shrink below its content width on the narrowest rows. No media query — flex decides (story 123).
   searchBox: {
-    width: '280px',
-    maxWidth: '50%',
+    flexGrow: 1,
+    flexBasis: 0,
+    minWidth: 0,
+    maxWidth: '400px',
   },
   empty: {
     color: tokens.colorNeutralForeground3,
