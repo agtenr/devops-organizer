@@ -3,13 +3,14 @@ import { createRoot } from 'react-dom/client';
 import {
   FluentProvider,
   Text,
+  createDarkTheme,
+  createLightTheme,
   makeStaticStyles,
   makeStyles,
   tokens,
-  webDarkTheme,
-  webLightTheme,
 } from '@fluentui/react-components';
 import type { CategorizedEmail } from './models/categorization';
+import { brandRamp } from './services/theme/brandPalette';
 import { Organizer } from './components/Organizer/Organizer';
 import type { OrganizerData } from './components/Organizer/useOrganizer';
 import { ALL_CUSTOMERS } from './components/CustomerTabs/useCustomerTabs';
@@ -177,7 +178,10 @@ const isDark = stateParam === 'dark';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <FluentProvider theme={isDark ? webDarkTheme : webLightTheme} style={{ height: '100%' }}>
+    <FluentProvider
+      theme={isDark ? createDarkTheme(brandRamp) : createLightTheme(brandRamp)}
+      style={{ height: '100%' }}
+    >
       <Harness />
     </FluentProvider>
   </StrictMode>,
