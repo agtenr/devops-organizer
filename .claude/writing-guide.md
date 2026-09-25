@@ -6,11 +6,11 @@ Use these terms, so every comment and plan uses the same words.
 
 | Use | Not | Meaning |
 |---|---|---|
-| <term> | <avoid> | <one-line plain explanation> |
+| Word for word  | verbatim | Verbatim is a complex word for non-native english speakers |
 
 ## Words to avoid
 
-- <word or phrase> → use <simpler alternative>
+- Verbatim → use 'Word for word' or 'Literally'
 
 ## Our readers
 
