@@ -202,6 +202,10 @@ export interface EmailListProps {
   selectedFilters: SelectedFilterChip[];
   /** Removes a single active filter when its chip's X is clicked (dispatches to `useOrganizer`). */
   onRemoveFilter: (chip: SelectedFilterChip) => void;
+  /** The subject-search query (owned by `useOrganizer` — story 126, so a saved view can capture it). */
+  searchQuery: string;
+  /** Sets the subject-search query (from the toolbar `SearchBox`; blank clears the filter). */
+  setSearchQuery: (query: string) => void;
 }
 
 /**
@@ -219,12 +223,12 @@ export function EmailList({
   deleteEmails,
   selectedFilters,
   onRemoveFilter,
+  searchQuery,
+  setSearchQuery,
 }: EmailListProps) {
   const styles = useStyles();
   const {
     visibleEmails,
-    searchQuery,
-    setSearchQuery,
     selectedEmail,
     isPanelOpen,
     openEmail,
@@ -241,7 +245,7 @@ export function EmailList({
     openDeleteRow,
     openDeleteBulk,
     closeDelete,
-  } = useEmailList(emails, allEmails);
+  } = useEmailList(emails, allEmails, searchQuery);
   const { width: panelWidth, handleProps } = useResizablePanel();
 
   // The ids of the currently-rendered (filtered + searched) rows — the scope of the header

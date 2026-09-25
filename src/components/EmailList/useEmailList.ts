@@ -5,10 +5,14 @@ import { filterBySubject } from './emailSearch';
 /**
  * `EmailList` view logic (see `.claude/rules/frontend-architecture.md` — logic lives in a colocated
  * hook, not JSX). Owns the **view-only** body-panel selection, the multi-select set for bulk delete,
- * which delete-confirm dialog is open, and the **subject-search** query; the pure display formatters
- * and the pure subject matcher the rows consume live alongside in `emailFormatters.ts` /
- * `emailSearch.ts`. It never re-derives categorization tags — the engine's `(customer, project,
- * type)` triple is consumed verbatim (`.claude/rules/categorization-domain.md`).
+ * and which delete-confirm dialog is open; the pure display formatters and the pure subject matcher
+ * the rows consume live alongside in `emailFormatters.ts` / `emailSearch.ts`. It never re-derives
+ * categorization tags — the engine's `(customer, project, type)` triple is consumed verbatim
+ * (`.claude/rules/categorization-domain.md`).
+ *
+ * The **subject-search query** is no longer owned here (story 126) — it moved up to `useOrganizer`,
+ * which is the single owner of the whole filter combination a saved view captures (customer/project/
+ * type/search). This hook takes `searchQuery` as a parameter instead.
  */
 
 /** The GUID + organization of the row whose "Resolve project GUID" dialog is open. */
@@ -29,10 +33,6 @@ export interface DeleteTarget {
 export interface UseEmailListResult {
   /** The subset of `emails` whose subject matches the current search (the rows the list renders). */
   visibleEmails: CategorizedEmail[];
-  /** The current subject-search query (controlled input value). */
-  searchQuery: string;
-  /** Set the subject-search query (from the toolbar `SearchBox`; blank clears the filter). */
-  setSearchQuery: (query: string) => void;
   /** The e-mail whose body the panel shows, or `null` when nothing has been opened yet. */
   selectedEmail: CategorizedEmail | null;
   /** Whether the body panel is open. */
@@ -80,13 +80,13 @@ export interface UseEmailListResult {
 export function useEmailList(
   emails: CategorizedEmail[],
   allEmails: CategorizedEmail[],
+  searchQuery: string,
 ): UseEmailListResult {
   const [selectedEmail, setSelectedEmail] = useState<CategorizedEmail | null>(null);
   const [rawIsPanelOpen, setRawIsPanelOpen] = useState(false);
   const [resolveTarget, setResolveTarget] = useState<ResolveTarget | null>(null);
   const [rawSelectedIds, setRawSelectedIds] = useState<ReadonlySet<string>>(new Set());
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
 
   // The rows the list actually renders: the filtered `emails` narrowed by the subject search. Derived
   // during render (no setState-in-effect), and it becomes the "visible" set for selection/select-all
@@ -197,8 +197,6 @@ export function useEmailList(
 
   return {
     visibleEmails,
-    searchQuery,
-    setSearchQuery,
     selectedEmail,
     isPanelOpen,
     openEmail,

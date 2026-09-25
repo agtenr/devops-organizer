@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { FluentProvider, webLightTheme } from '@fluentui/react-components';
 import type { Message } from '@microsoft/microsoft-graph-types';
@@ -29,7 +30,11 @@ function email(
   };
 }
 
-function renderList(overrides: Partial<EmailListProps> = {}) {
+// `searchQuery` is now controlled from outside `EmailList` (owned by `useOrganizer`, story 126), so
+// the test harness plays that owner: a thin wrapper holding the `useState` and feeding it down as
+// props, exactly like `Organizer` does in the real app.
+function Harness({ overrides }: { overrides: Partial<EmailListProps> }) {
+  const [searchQuery, setSearchQuery] = useState(overrides.searchQuery ?? '');
   // In the real app the filtered `emails` are always a subset of the `allEmails` corpus, and the
   // previewed row must be in the corpus for the panel to stay open (story 55). Mirror that here by
   // defaulting `allEmails` to the same list as `emails` unless a test overrides it explicitly.
@@ -42,10 +47,16 @@ function renderList(overrides: Partial<EmailListProps> = {}) {
     selectedFilters: [],
     onRemoveFilter: vi.fn(),
     ...overrides,
+    searchQuery,
+    setSearchQuery,
   };
+  return <EmailList {...props} />;
+}
+
+function renderList(overrides: Partial<EmailListProps> = {}) {
   return render(
     <FluentProvider theme={webLightTheme}>
-      <EmailList {...props} />
+      <Harness overrides={overrides} />
     </FluentProvider>,
   );
 }
