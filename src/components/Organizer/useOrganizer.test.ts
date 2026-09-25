@@ -308,13 +308,31 @@ describe('useOrganizer — saved views', () => {
       deleteView: vi.fn(),
       setDefaultView: vi.fn(),
     });
-    const { result } = renderHook(() => useOrganizer());
+    const { result, rerender } = renderHook(() => useOrganizer());
 
     await waitFor(() => expect(result.current.selectedCustomer).toBe('Contoso'));
     expect(result.current.selectedProject).toBe('Alpha');
 
     // Manually clearing the project afterward must not be re-clobbered by a second auto-apply.
     act(() => result.current.onSelectProject('Alpha'));
+    expect(result.current.selectedProject).toBeNull();
+
+    // A NEW savedViews array (still with the same default) is exactly what a save/rename/delete
+    // produces in real use — the effect's dependency changes, so without the once-only ref guard this
+    // would re-fire and clobber the manual deselect above.
+    useSavedViews.mockReturnValue({
+      savedViews: [{ ...SAVED_VIEW, isDefault: true }],
+      loaded: true,
+      saveView: vi.fn(),
+      renameView: vi.fn(),
+      deleteView: vi.fn(),
+      setDefaultView: vi.fn(),
+    });
+    rerender();
+    await act(async () => {
+      await Promise.resolve();
+    });
+
     expect(result.current.selectedProject).toBeNull();
   });
 

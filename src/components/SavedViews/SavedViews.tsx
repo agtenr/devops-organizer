@@ -85,7 +85,7 @@ export function SavedViews({
   const { dialogTarget, openCreateDialog, openRenameDialog, closeDialog } = useSavedViewsPanel();
 
   return (
-    <div className={styles.root} aria-label="Saved views">
+    <div className={styles.root} role="region" aria-label="Saved views">
       <div className={styles.header}>
         <Text weight="semibold">Saved views</Text>
         <Button
@@ -116,7 +116,10 @@ export function SavedViews({
                   size="small"
                   icon={view.isDefault ? <Star20Filled /> : <Star20Regular />}
                   aria-label={`Mark ${view.name} as default`}
-                  onClick={() => onSetDefault(view.id)}
+                  aria-pressed={view.isDefault}
+                  onClick={() => {
+                    onSetDefault(view.id).catch(() => {});
+                  }}
                 />
               </Tooltip>
               <Button
@@ -131,7 +134,9 @@ export function SavedViews({
                 size="small"
                 icon={<Delete20Regular />}
                 aria-label={`Delete ${view.name}`}
-                onClick={() => onDelete(view.id)}
+                onClick={() => {
+                  onDelete(view.id).catch(() => {});
+                }}
               />
             </div>
           ))}

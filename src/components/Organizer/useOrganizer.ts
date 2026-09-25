@@ -175,9 +175,19 @@ export function useOrganizer() {
     }
     hasAppliedDefaultRef.current = true;
     const defaultView = savedViews.find((view) => view.isDefault);
-    if (defaultView) {
-      queueMicrotask(() => applyFilters(defaultView));
+    if (!defaultView) {
+      return;
     }
+    // Guard against the deferred apply landing after this hook's owner has unmounted (review finding).
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) {
+        applyFilters(defaultView);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [status, savedViewsLoaded, savedViews, applyFilters]);
 
   return {

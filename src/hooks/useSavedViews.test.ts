@@ -1,5 +1,5 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SavedView } from '../models/savedViews';
 
 // Stable signed-in account (defined inside the factory so its identity never changes across renders,
@@ -27,8 +27,15 @@ vi.mock('../services/savedViews/savedViewsService', () => ({
   saveSavedViews: vi.fn(() => Promise.resolve(undefined)),
 }));
 
-import { saveSavedViews } from '../services/savedViews/savedViewsService';
+import { fetchSavedViews, saveSavedViews } from '../services/savedViews/savedViewsService';
 import { useSavedViews } from './useSavedViews';
+
+// Clears call history between tests (keeps each mock's default implementation set above) so a test
+// asserting `not.toHaveBeenCalled()` isn't tripped by calls recorded by an earlier test in this file.
+beforeEach(() => {
+  vi.mocked(fetchSavedViews).mockClear();
+  vi.mocked(saveSavedViews).mockClear();
+});
 
 describe('useSavedViews', () => {
   it('loads the persisted views and reports loaded once settled', async () => {
@@ -118,5 +125,34 @@ describe('useSavedViews', () => {
       false,
     );
     expect(result.current.savedViews.find((view) => view.id === second.id)?.isDefault).toBe(true);
+  });
+});
+
+describe('useSavedViews — a genuine load failure never risks wiping the stored file', () => {
+  it('leaves loaded false on a non-404 fetch error, and every mutator refuses to write', async () => {
+    vi.mocked(fetchSavedViews).mockRejectedValueOnce(
+      Object.assign(new Error('Graph 500'), { statusCode: 500 }),
+    );
+    const { result } = renderHook(() => useSavedViews());
+
+    // Give the rejected load promise a tick to settle.
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(result.current.loaded).toBe(false);
+    expect(result.current.savedViews).toEqual([]);
+
+    await expect(
+      result.current.saveView('New view', {
+        customer: 'Adatum',
+        project: null,
+        typeKeys: [],
+        searchQuery: '',
+      }),
+    ).rejects.toThrow(/not finished loading/);
+
+    // The failed load must never let a save PUT an array that drops the real stored views.
+    expect(vi.mocked(saveSavedViews)).not.toHaveBeenCalled();
   });
 });

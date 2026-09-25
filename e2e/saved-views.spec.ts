@@ -16,5 +16,11 @@ test('the Saved views section renders above the filters, with a default marked',
   await expect(page.getByRole('listitem', { name: /Contoso failed builds/ })).toBeVisible();
   await expect(page.getByRole('listitem', { name: /Adatum reviews/ })).toBeVisible();
 
+  // "Above the filters": the Saved views section's top edge sits higher on the page than the
+  // Projects section's, not just present somewhere in the sidebar.
+  const savedViewsBox = (await page.getByRole('region', { name: 'Saved views' }).boundingBox())!;
+  const projectsBox = (await page.getByRole('button', { name: 'Projects' }).boundingBox())!;
+  expect(savedViewsBox.y).toBeLessThan(projectsBox.y);
+
   await page.screenshot({ path: 'e2e/screenshots/126/saved-views-sidebar.png' });
 });
