@@ -10,6 +10,7 @@ import type { Client } from '@microsoft/microsoft-graph-client';
  */
 
 const THEME_FILE_PATH = '/me/drive/special/approot:/theme-preference.json:/content';
+const THEME_CACHE_KEY = 'themeMode';
 
 export type ThemeMode = 'light' | 'dark';
 
@@ -72,4 +73,20 @@ export async function saveThemePreference(client: Client, theme: ThemeMode): Pro
     .api(THEME_FILE_PATH)
     .header('Content-Type', 'application/json')
     .put(JSON.stringify(payload));
+}
+
+/**
+ * Reads the last-known theme mode cached in `localStorage` on this device. This is a same-device
+ * shortcut so the mode is known synchronously, before the OneDrive fetch resolves — it avoids the
+ * light-theme flash on load for a returning user. Returns `null` when there is no cached value or
+ * it is not a recognized `ThemeMode` (never throws).
+ */
+export function getCachedThemeMode(): ThemeMode | null {
+  const cached = localStorage.getItem(THEME_CACHE_KEY);
+  return cached === 'light' || cached === 'dark' ? cached : null;
+}
+
+/** Writes the theme mode to the same-device `localStorage` cache. */
+export function setCachedThemeMode(theme: ThemeMode): void {
+  localStorage.setItem(THEME_CACHE_KEY, theme);
 }

@@ -1,6 +1,11 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Client } from '@microsoft/microsoft-graph-client';
-import { fetchThemePreference, saveThemePreference } from './themeService';
+import {
+  fetchThemePreference,
+  getCachedThemeMode,
+  saveThemePreference,
+  setCachedThemeMode,
+} from './themeService';
 
 /**
  * Minimal fake of the Graph request builder chain used by the service:
@@ -97,5 +102,25 @@ describe('saveThemePreference', () => {
     expect(put).toHaveBeenCalledTimes(1);
     expect(lastPath()).toBe('/me/drive/special/approot:/theme-preference.json:/content');
     expect(JSON.parse(lastPutBody() as string)).toEqual({ theme: 'light' });
+  });
+});
+
+describe('getCachedThemeMode / setCachedThemeMode', () => {
+  afterEach(() => {
+    localStorage.clear();
+  });
+
+  it('returns null when nothing is cached', () => {
+    expect(getCachedThemeMode()).toBeNull();
+  });
+
+  it('returns the cached value after setCachedThemeMode', () => {
+    setCachedThemeMode('dark');
+    expect(getCachedThemeMode()).toBe('dark');
+  });
+
+  it('returns null for a corrupted/unexpected cached value', () => {
+    localStorage.setItem('themeMode', 'high-contrast');
+    expect(getCachedThemeMode()).toBeNull();
   });
 });
