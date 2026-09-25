@@ -135,10 +135,11 @@ pixel color of each bar:
    add it to two new style rules for the display-name `Text` and the theme-toggle icon `Button`
    (currently unstyled, using ambient color) so both stay readable against the dark background.
    The title and the toggle are Fluent `Button`s, which set their **own** color on hover/press —
-   so also override `:hover` and `:hover:active` on `title` and the toggle's style to the same
-   `colorNeutralForegroundOnBrand`, or the text goes dark-on-dark on interaction (caught in code
-   review). Leave the "Log out" button's `appearance="secondary"` as-is — it already has its own
-   background independent of the bar.
+   so also override `:hover`, `:hover:active` (mouse press), and `:active:focus-visible`
+   (keyboard press — a separate Fluent selector, easy to miss) on `title` and the toggle's style
+   to the same `colorNeutralForegroundOnBrand`, or the text goes dark-on-dark on interaction
+   (caught in code review, across two passes). Leave the "Log out" button's
+   `appearance="secondary"` as-is — it already has its own background independent of the bar.
    Rule: `.claude/rules/frontend-architecture.md`.
 
 5. **Update `src/components/CustomerTabs/CustomerTabs.tsx` and

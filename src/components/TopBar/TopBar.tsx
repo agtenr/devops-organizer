@@ -23,9 +23,11 @@ const useStyles = makeStyles({
   },
   // colorNeutralForegroundOnBrand is Fluent's fixed light-text token for content sitting on a
   // colored surface — correct against the dark navy background in both light and dark theme.
-  // The title and toggle are Fluent Buttons, which set their own color on hover/press (their
-  // brand-hover/brand-pressed tokens) — those rules must be overridden too, or the text goes
-  // dark-on-dark on interaction.
+  // The title and toggle are Fluent Buttons, which set their own color on hover/press. Fluent's
+  // pressed rule matches on TWO separate selectors, ":hover:active" (mouse) and
+  // ":active:focus-visible" (keyboard) — see @fluentui/react-button's compiled button styles —
+  // so both must be overridden as separate keys here too; a single ":hover:active" alone misses
+  // the keyboard-press case (caught in code review pass 2).
   title: {
     gridColumnStart: 2,
     // Restore the heading-sized type the plain <h1> Text had (Button defaults to body-sized text),
@@ -35,6 +37,7 @@ const useStyles = makeStyles({
     color: tokens.colorNeutralForegroundOnBrand,
     ':hover': { color: tokens.colorNeutralForegroundOnBrand },
     ':hover:active': { color: tokens.colorNeutralForegroundOnBrand },
+    ':active:focus-visible': { color: tokens.colorNeutralForegroundOnBrand },
   },
   userGroup: {
     gridColumnStart: 3,
@@ -50,6 +53,7 @@ const useStyles = makeStyles({
     color: tokens.colorNeutralForegroundOnBrand,
     ':hover': { color: tokens.colorNeutralForegroundOnBrand },
     ':hover:active': { color: tokens.colorNeutralForegroundOnBrand },
+    ':active:focus-visible': { color: tokens.colorNeutralForegroundOnBrand },
   },
 });
 
