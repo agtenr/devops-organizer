@@ -1,5 +1,6 @@
 import { Button, Text, makeStyles, tokens } from '@fluentui/react-components';
 import { WeatherMoonRegular, WeatherSunnyRegular } from '@fluentui/react-icons';
+import { topBarBackground } from '../../services/theme/brandPalette';
 import { useTopBar } from './useTopBar';
 
 const useStyles = makeStyles({
@@ -15,16 +16,20 @@ const useStyles = makeStyles({
     alignItems: 'center',
     paddingBlock: tokens.spacingVerticalM,
     paddingInline: tokens.spacingHorizontalL,
-    // Opaque background so scrolled content passes under the bar rather than showing through it.
-    backgroundColor: tokens.colorNeutralBackground1,
+    // Opaque, branded background (story 124) — the same dark navy in both themes, so scrolled
+    // content passes under the bar rather than showing through it.
+    backgroundColor: topBarBackground,
     borderBottom: `${tokens.strokeWidthThin} solid ${tokens.colorNeutralStroke2}`,
   },
+  // colorNeutralForegroundOnBrand is Fluent's fixed light-text token for content sitting on a
+  // colored surface — correct against the dark navy background in both light and dark theme.
   title: {
     gridColumnStart: 2,
     // Restore the heading-sized type the plain <h1> Text had (Button defaults to body-sized text),
     // so the clickable title reads as the app title, not a toolbar button.
     fontSize: tokens.fontSizeBase500,
     fontWeight: tokens.fontWeightSemibold,
+    color: tokens.colorNeutralForegroundOnBrand,
   },
   userGroup: {
     gridColumnStart: 3,
@@ -32,6 +37,12 @@ const useStyles = makeStyles({
     alignItems: 'center',
     justifyContent: 'flex-end',
     gap: tokens.spacingHorizontalM,
+  },
+  displayName: {
+    color: tokens.colorNeutralForegroundOnBrand,
+  },
+  themeToggle: {
+    color: tokens.colorNeutralForegroundOnBrand,
   },
 });
 
@@ -67,8 +78,16 @@ export function TopBar() {
         E-mail Organizer
       </Button>
       <div className={styles.userGroup}>
-        <Text weight="semibold">{displayName}</Text>
-        <Button appearance="subtle" icon={toggleIcon} title={toggleTitle} onClick={toggleTheme} />
+        <Text className={styles.displayName} weight="semibold">
+          {displayName}
+        </Text>
+        <Button
+          className={styles.themeToggle}
+          appearance="subtle"
+          icon={toggleIcon}
+          title={toggleTitle}
+          onClick={toggleTheme}
+        />
         <Button appearance="secondary" onClick={logout}>
           Log out
         </Button>

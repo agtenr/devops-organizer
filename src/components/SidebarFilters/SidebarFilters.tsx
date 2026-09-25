@@ -9,6 +9,7 @@ import {
   makeStyles,
   tokens,
 } from '@fluentui/react-components';
+import { accentBadgeBackground, accentBadgeForeground } from '../../services/theme/brandPalette';
 import type { FilterOption } from './facetFilters';
 
 const useStyles = makeStyles({
@@ -42,6 +43,10 @@ const useStyles = makeStyles({
   },
   optionCount: {
     flexShrink: 0,
+    // Branded counter color (story 124) — overrides CounterBadge's default "informative"
+    // coloring, the same way every item counter in the app is colored (see CustomerTabs).
+    backgroundColor: accentBadgeBackground,
+    color: accentBadgeForeground,
   },
   empty: {
     color: tokens.colorNeutralForeground3,
@@ -89,7 +94,6 @@ function FilterGroup({ heading, options, isSelected, onToggle, ariaLabel }: Filt
                   className={styles.optionCount}
                   count={option.count}
                   appearance="filled"
-                  color="informative"
                   size="small"
                   showZero
                 />

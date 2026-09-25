@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { FluentProvider, webDarkTheme, webLightTheme } from '@fluentui/react-components';
+import { FluentProvider, createDarkTheme, createLightTheme } from '@fluentui/react-components';
 import { useMsal } from '@azure/msal-react';
 import { createGraphClient } from '../../services/graph/graphClient';
+import { brandRamp } from '../../services/theme/brandPalette';
 import {
   fetchThemePreference,
   saveThemePreference,
@@ -50,9 +51,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, [accounts, themeMode]);
 
   // Resolve the Fluent UI theme token from the mode string — during render so it updates
-  // FluentProvider atomically with the state change.
+  // FluentProvider atomically with the state change. Both themes are built from the same brand
+  // ramp (story 124) so the color scheme is identical in light and dark mode.
   const themeToken = useMemo(
-    () => (themeMode === 'dark' ? webDarkTheme : webLightTheme),
+    () => (themeMode === 'dark' ? createDarkTheme(brandRamp) : createLightTheme(brandRamp)),
     [themeMode],
   );
 

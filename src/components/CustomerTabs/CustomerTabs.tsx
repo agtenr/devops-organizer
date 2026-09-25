@@ -8,6 +8,7 @@ import {
   type SelectTabEvent,
 } from '@fluentui/react-components';
 import type { CategorizedEmail } from '../../models/categorization';
+import { accentBadgeBackground, accentBadgeForeground } from '../../services/theme/brandPalette';
 import { useCustomerTabs } from './useCustomerTabs';
 
 const useStyles = makeStyles({
@@ -20,6 +21,12 @@ const useStyles = makeStyles({
     display: 'inline-flex',
     alignItems: 'center',
     gap: tokens.spacingHorizontalXS,
+  },
+  // Branded counter color (story 124) — overrides CounterBadge's default "informative" coloring,
+  // the same way every item counter in the app is colored (see SidebarFilters).
+  counter: {
+    backgroundColor: accentBadgeBackground,
+    color: accentBadgeForeground,
   },
 });
 
@@ -58,9 +65,9 @@ export function CustomerTabs({ emails, selectedCustomer, onSelect }: CustomerTab
           <span className={styles.tabLabel}>
             {tab.label}
             <CounterBadge
+              className={styles.counter}
               count={tab.count}
               appearance="filled"
-              color="informative"
               size="small"
               showZero
             />
