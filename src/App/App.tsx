@@ -35,26 +35,28 @@ const useStyles = makeStyles({
  * loading UI shows, and a failure renders the error page. Authenticated users see the app inside a
  * fixed, full-height shell whose only scrolling region is the e-mail list (story 46).
  *
- * `ThemeProvider` wraps the shell inside the auth gate so the Graph client is available for the
- * theme preference fetch (story 87). It owns the `FluentProvider` with the dynamic theme token.
+ * `ThemeProvider` wraps the auth gate (not just the shell inside it), so the sign-in loading and
+ * error screens render inside `FluentProvider` too and pick up the user's theme immediately
+ * (AB#125) — it owns the `FluentProvider` with the dynamic theme token. It still resolves the
+ * Graph client for the theme preference fetch itself once an account exists (story 87).
  */
 export function App() {
   useGlobalStyles();
   const styles = useStyles();
 
   return (
-    <MsalAuthenticationTemplate
-      interactionType={InteractionType.Redirect}
-      authenticationRequest={loginRequest}
-      errorComponent={AuthError}
-      loadingComponent={AuthLoading}
-    >
-      <ThemeProvider>
+    <ThemeProvider>
+      <MsalAuthenticationTemplate
+        interactionType={InteractionType.Redirect}
+        authenticationRequest={loginRequest}
+        errorComponent={AuthError}
+        loadingComponent={AuthLoading}
+      >
         <div className={styles.shell}>
           <TopBar />
           <Organizer />
         </div>
-      </ThemeProvider>
-    </MsalAuthenticationTemplate>
+      </MsalAuthenticationTemplate>
+    </ThemeProvider>
   );
 }
