@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ThemeProvider } from './ThemeProvider';
 import { useTheme } from './useTheme';
-import { saveThemePreference } from '../../services/theme/themeService';
+import { fetchThemePreference, saveThemePreference } from '../../services/theme/themeService';
 
 // Stable signed-in account so ThemeProvider's Graph fetch effect actually runs (mirrors the
 // mocking shape used in TopBar.test.tsx / useCategorizedMail.test.ts).
@@ -67,6 +67,14 @@ describe('ThemeProvider', () => {
     fireEvent.click(screen.getByRole('button', { name: 'toggle' }));
 
     expect(saveThemePreference).toHaveBeenCalledWith(expect.anything(), 'dark');
+    expect(await screen.findByText('dark')).toBeInTheDocument();
+    expect(localStorage.getItem('themeMode')).toBe('dark');
+  });
+
+  it('caches the mode fetched from OneDrive once it resolves', async () => {
+    vi.mocked(fetchThemePreference).mockResolvedValueOnce('dark');
+    renderWithProbe();
+
     expect(await screen.findByText('dark')).toBeInTheDocument();
     expect(localStorage.getItem('themeMode')).toBe('dark');
   });
