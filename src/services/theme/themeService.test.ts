@@ -123,4 +123,21 @@ describe('getCachedThemeMode / setCachedThemeMode', () => {
     localStorage.setItem('themeMode', 'high-contrast');
     expect(getCachedThemeMode()).toBeNull();
   });
+
+  it('returns null instead of throwing when localStorage.getItem throws', () => {
+    const getItem = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('storage blocked');
+    });
+    expect(() => getCachedThemeMode()).not.toThrow();
+    expect(getCachedThemeMode()).toBeNull();
+    getItem.mockRestore();
+  });
+
+  it('does not throw when localStorage.setItem throws', () => {
+    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('storage blocked');
+    });
+    expect(() => setCachedThemeMode('dark')).not.toThrow();
+    setItem.mockRestore();
+  });
 });

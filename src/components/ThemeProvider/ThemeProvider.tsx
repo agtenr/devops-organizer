@@ -27,8 +27,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     () => getCachedThemeMode() ?? DEFAULT_THEME,
   );
 
-  // Fetch saved preference once on mount. The account is available because ThemeProvider sits
-  // inside the MsalAuthenticationTemplate gate in App.tsx.
+  // Fetch the saved preference once an account is available (AB#125 moved ThemeProvider above
+  // MsalAuthenticationTemplate, so this effect re-runs and resolves once sign-in completes).
   useEffect(() => {
     const account = accounts[0];
     if (!account) return;

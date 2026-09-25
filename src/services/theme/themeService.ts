@@ -82,11 +82,20 @@ export async function saveThemePreference(client: Client, theme: ThemeMode): Pro
  * it is not a recognized `ThemeMode` (never throws).
  */
 export function getCachedThemeMode(): ThemeMode | null {
-  const cached = localStorage.getItem(THEME_CACHE_KEY);
-  return cached === 'light' || cached === 'dark' ? cached : null;
+  try {
+    const cached = localStorage.getItem(THEME_CACHE_KEY);
+    return cached === 'light' || cached === 'dark' ? cached : null;
+  } catch {
+    // localStorage can throw (e.g. blocked by browser privacy settings) — treat as uncached.
+    return null;
+  }
 }
 
-/** Writes the theme mode to the same-device `localStorage` cache. */
+/** Writes the theme mode to the same-device `localStorage` cache. Never throws. */
 export function setCachedThemeMode(theme: ThemeMode): void {
-  localStorage.setItem(THEME_CACHE_KEY, theme);
+  try {
+    localStorage.setItem(THEME_CACHE_KEY, theme);
+  } catch {
+    // localStorage can throw (e.g. blocked by browser privacy settings) — the cache is best-effort.
+  }
 }
