@@ -95,15 +95,20 @@ pixel color of each bar:
    | 50 | `#123B54` |
    | 60 | `#164764` |
    | 70 | `#1A5375` |
-   | 80 | `#2C8EC7` |
-   | 90 | `#2983B8` |
-   | 100 | `#3699D3` |
-   | 110 | `#58AADA` |
-   | 120 | `#79BBE1` |
-   | 130 | `#9BCCE9` |
-   | 140 | `#BCDDF0` |
-   | 150 | `#DEEEF8` |
-   | 160 | `#F2F9FC` |
+   | 80 | `#1E5F86` |
+   | 90 | `#23719F` |
+   | 100 | `#2983B8` |
+   | 110 | `#2E95D1` |
+   | 120 | `#50A6D8` |
+   | 130 | `#71B7E0` |
+   | 140 | `#9BCCE9` |
+   | 150 | `#C5E1F2` |
+   | 160 | `#EAF4FA` |
+
+   *(Revised during code review: the first version of this ramp was not ordered dark to light —
+   shade 80 was lighter than shade 90 — and its shade 80 had only ~3.6:1 contrast against white
+   text, below the 4.5:1 WCAG AA minimum Fluent's own stock theme meets at that shade. This
+   version is strictly dark-to-light and shade 80 has ~6.9:1 contrast against white.)*
 
    Rule: `.claude/rules/frontend-architecture.md` — this is a small shared, non-colocated helper
    (used by `ThemeProvider.tsx` and `harness.tsx`), so it belongs under `services/`, next to the
@@ -125,11 +130,15 @@ pixel color of each bar:
 
 4. **Update `src/components/TopBar/TopBar.tsx`.**
    In the `root` style, change `backgroundColor` from `tokens.colorNeutralBackground1` to
-   `topBarBackground` (from task 1). Add `color: tokens.colorNeutralForegroundOnBrand` to the
-   `title` style, and add it to two new style rules for the display-name `Text` and the
-   theme-toggle icon `Button` (currently unstyled, using ambient color) so both stay readable
-   against the dark background. Leave the "Log out" button's `appearance="secondary"` as-is — it
-   already has its own background independent of the bar.
+   `topBarBackground` (from task 1), and drop the neutral-gray bottom border — it doesn't read
+   against the navy. Add `color: tokens.colorNeutralForegroundOnBrand` to the `title` style, and
+   add it to two new style rules for the display-name `Text` and the theme-toggle icon `Button`
+   (currently unstyled, using ambient color) so both stay readable against the dark background.
+   The title and the toggle are Fluent `Button`s, which set their **own** color on hover/press —
+   so also override `:hover` and `:hover:active` on `title` and the toggle's style to the same
+   `colorNeutralForegroundOnBrand`, or the text goes dark-on-dark on interaction (caught in code
+   review). Leave the "Log out" button's `appearance="secondary"` as-is — it already has its own
+   background independent of the bar.
    Rule: `.claude/rules/frontend-architecture.md`.
 
 5. **Update `src/components/CustomerTabs/CustomerTabs.tsx` and

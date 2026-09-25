@@ -17,12 +17,15 @@ const useStyles = makeStyles({
     paddingBlock: tokens.spacingVerticalM,
     paddingInline: tokens.spacingHorizontalL,
     // Opaque, branded background (story 124) — the same dark navy in both themes, so scrolled
-    // content passes under the bar rather than showing through it.
+    // content passes under the bar rather than showing through it. No bottom border: Fluent's
+    // neutral stroke color doesn't read against the navy.
     backgroundColor: topBarBackground,
-    borderBottom: `${tokens.strokeWidthThin} solid ${tokens.colorNeutralStroke2}`,
   },
   // colorNeutralForegroundOnBrand is Fluent's fixed light-text token for content sitting on a
   // colored surface — correct against the dark navy background in both light and dark theme.
+  // The title and toggle are Fluent Buttons, which set their own color on hover/press (their
+  // brand-hover/brand-pressed tokens) — those rules must be overridden too, or the text goes
+  // dark-on-dark on interaction.
   title: {
     gridColumnStart: 2,
     // Restore the heading-sized type the plain <h1> Text had (Button defaults to body-sized text),
@@ -30,6 +33,8 @@ const useStyles = makeStyles({
     fontSize: tokens.fontSizeBase500,
     fontWeight: tokens.fontWeightSemibold,
     color: tokens.colorNeutralForegroundOnBrand,
+    ':hover': { color: tokens.colorNeutralForegroundOnBrand },
+    ':hover:active': { color: tokens.colorNeutralForegroundOnBrand },
   },
   userGroup: {
     gridColumnStart: 3,
@@ -43,6 +48,8 @@ const useStyles = makeStyles({
   },
   themeToggle: {
     color: tokens.colorNeutralForegroundOnBrand,
+    ':hover': { color: tokens.colorNeutralForegroundOnBrand },
+    ':hover:active': { color: tokens.colorNeutralForegroundOnBrand },
   },
 });
 

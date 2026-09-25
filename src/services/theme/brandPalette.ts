@@ -6,9 +6,9 @@ import type { BrandVariants } from '@fluentui/react-components';
  *
  * `brandRamp` is the 16-shade ramp Fluent's `createLightTheme`/`createDarkTheme` need to build a
  * custom-colored theme. Fluent's own ramp-generator tool isn't runnable outside its web app, so
- * this ramp is an approximation: same hue as the blue swatch, stepped lightness. Good enough for
- * "visually attractive and consistent" — the story does not require an exact match to Microsoft's
- * generator output.
+ * this ramp is an approximation: same hue as the blue swatch, lightness stepped from dark (10) to
+ * light (160), each shade checked for at least 4.5:1 (WCAG AA) contrast against white where
+ * Fluent pairs a shade with white text (e.g. shade 80, the default button background).
  */
 export const brandRamp: BrandVariants = {
   10: '#040C11',
@@ -18,15 +18,15 @@ export const brandRamp: BrandVariants = {
   50: '#123B54',
   60: '#164764',
   70: '#1A5375',
-  80: '#2C8EC7',
-  90: '#2983B8',
-  100: '#3699D3',
-  110: '#58AADA',
-  120: '#79BBE1',
-  130: '#9BCCE9',
-  140: '#BCDDF0',
-  150: '#DEEEF8',
-  160: '#F2F9FC',
+  80: '#1E5F86',
+  90: '#23719F',
+  100: '#2983B8',
+  110: '#2E95D1',
+  120: '#50A6D8',
+  130: '#71B7E0',
+  140: '#9BCCE9',
+  150: '#C5E1F2',
+  160: '#EAF4FA',
 };
 
 /** The top bar's background, sampled from the palette image's dark-navy swatch. */
