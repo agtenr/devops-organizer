@@ -8,6 +8,7 @@ import {
 } from '@fluentui/react-components';
 import { CustomerTabs } from '../CustomerTabs/CustomerTabs';
 import { SidebarFilters } from '../SidebarFilters/SidebarFilters';
+import { SavedViews } from '../SavedViews/SavedViews';
 import { EmailList } from '../EmailList/EmailList';
 import { useOrganizer, type OrganizerData } from './useOrganizer';
 
@@ -91,6 +92,14 @@ export function Organizer({ useData = useOrganizer }: OrganizerProps = {}) {
     onToggleType,
     selectedFilters,
     removeFilter,
+    searchQuery,
+    setSearchQuery,
+    savedViews,
+    applyView,
+    saveCurrentView,
+    renameView,
+    deleteView,
+    setDefaultView,
   } = useData();
 
   if (status === 'loading') {
@@ -138,6 +147,14 @@ export function Organizer({ useData = useOrganizer }: OrganizerProps = {}) {
       />
       <div className={styles.body}>
         <div className={styles.sidebar}>
+          <SavedViews
+            savedViews={savedViews}
+            onApply={applyView}
+            onSaveCurrent={saveCurrentView}
+            onRename={renameView}
+            onDelete={deleteView}
+            onSetDefault={setDefaultView}
+          />
           <SidebarFilters
             projectOptions={projectOptions}
             selectedProject={selectedProject}
@@ -155,6 +172,8 @@ export function Organizer({ useData = useOrganizer }: OrganizerProps = {}) {
             deleteEmails={deleteEmails}
             selectedFilters={selectedFilters}
             onRemoveFilter={removeFilter}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
           />
         </div>
       </div>

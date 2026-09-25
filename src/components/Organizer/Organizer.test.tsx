@@ -45,6 +45,14 @@ function data(overrides: Partial<OrganizerData> = {}): OrganizerData {
     onToggleType: vi.fn(),
     selectedFilters: [],
     removeFilter: vi.fn(),
+    searchQuery: '',
+    setSearchQuery: vi.fn(),
+    savedViews: [],
+    applyView: vi.fn(),
+    saveCurrentView: vi.fn(() => Promise.resolve()),
+    renameView: vi.fn(() => Promise.resolve()),
+    deleteView: vi.fn(() => Promise.resolve()),
+    setDefaultView: vi.fn(() => Promise.resolve()),
     ...overrides,
   };
 }
@@ -85,6 +93,11 @@ describe('Organizer — load lifecycle gate', () => {
     expect(screen.getByRole('complementary', { name: 'Filters' })).toBeInTheDocument();
     expect(screen.getByRole('grid', { name: 'E-mails' })).toBeInTheDocument();
     expect(screen.queryByText(/Loading mail from/)).not.toBeInTheDocument();
+  });
+
+  it('renders the Saved views section in the sidebar on success (story 126)', () => {
+    renderOrganizer({ status: 'success' });
+    expect(screen.getByText('Saved views')).toBeInTheDocument();
   });
 
   it('shows only a warning message when the corpus is empty — no tabs, filters, or list', () => {

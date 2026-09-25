@@ -1,4 +1,4 @@
-import { act, renderHook } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CategorizedEmail, MessageType } from '../../models/categorization';
 import { typeKey } from '../SidebarFilters/facetFilters';
@@ -27,10 +27,15 @@ const CATEGORIZED = [
   email('Adatum', 'Gamma', PR_CREATED),
 ];
 
-// useOrganizer's data path is mocked so the test drives only the selection/facet logic it owns.
+// useOrganizer's data paths are mocked so the test drives only the selection/facet logic it owns.
 const useCategorizedMail = vi.fn();
 vi.mock('../../hooks/useCategorizedMail', () => ({
   useCategorizedMail: () => useCategorizedMail(),
+}));
+
+const useSavedViews = vi.fn();
+vi.mock('../../hooks/useSavedViews', () => ({
+  useSavedViews: () => useSavedViews(),
 }));
 
 beforeEach(() => {
@@ -39,6 +44,14 @@ beforeEach(() => {
     error: '',
     folderName: 'DevOps',
     categorized: CATEGORIZED,
+  });
+  useSavedViews.mockReturnValue({
+    savedViews: [],
+    loaded: true,
+    saveView: vi.fn(() => Promise.resolve()),
+    renameView: vi.fn(() => Promise.resolve()),
+    deleteView: vi.fn(() => Promise.resolve()),
+    setDefaultView: vi.fn(() => Promise.resolve()),
   });
 });
 
@@ -184,5 +197,188 @@ describe('useOrganizer — clear on tab switch', () => {
 
     act(() => result.current.selectCustomer('Contoso'));
     expect(result.current.selectedProject).toBe('Alpha');
+  });
+});
+
+describe('useOrganizer — search query', () => {
+  it('owns the search query so it starts empty and is settable', () => {
+    const { result } = renderHook(() => useOrganizer());
+    expect(result.current.searchQuery).toBe('');
+
+    act(() => result.current.setSearchQuery('failed'));
+    expect(result.current.searchQuery).toBe('failed');
+  });
+});
+
+describe('useOrganizer — saved views', () => {
+  const SAVED_VIEW = {
+    id: 'view-1',
+    name: 'Contoso Alpha builds',
+    customer: 'Contoso',
+    project: 'Alpha',
+    typeKeys: [KEY_BUILD],
+    searchQuery: 'urgent',
+    isDefault: false,
+  };
+
+  it('saveCurrentView captures the whole active filter combination', () => {
+    const saveView = vi.fn(() => Promise.resolve());
+    useSavedViews.mockReturnValue({
+      savedViews: [],
+      loaded: true,
+      saveView,
+      renameView: vi.fn(),
+      deleteView: vi.fn(),
+      setDefaultView: vi.fn(),
+    });
+    const { result } = renderHook(() => useOrganizer());
+
+    act(() => result.current.selectCustomer('Contoso'));
+    act(() => result.current.onSelectProject('Alpha'));
+    act(() => result.current.onToggleType(KEY_BUILD));
+    act(() => result.current.setSearchQuery('urgent'));
+    act(() => {
+      void result.current.saveCurrentView('Contoso Alpha builds');
+    });
+
+    expect(saveView).toHaveBeenCalledWith('Contoso Alpha builds', {
+      customer: 'Contoso',
+      project: 'Alpha',
+      typeKeys: [KEY_BUILD],
+      searchQuery: 'urgent',
+    });
+  });
+
+  it('applyView sets customer/project/typeKeys/searchQuery in one step, not through selectCustomer', () => {
+    useSavedViews.mockReturnValue({
+      savedViews: [SAVED_VIEW],
+      loaded: true,
+      saveView: vi.fn(),
+      renameView: vi.fn(),
+      deleteView: vi.fn(),
+      setDefaultView: vi.fn(),
+    });
+    const { result } = renderHook(() => useOrganizer());
+
+    act(() => result.current.applyView('view-1'));
+
+    expect(result.current.selectedCustomer).toBe('Contoso');
+    expect(result.current.selectedProject).toBe('Alpha');
+    expect([...result.current.selectedTypeKeys]).toEqual([KEY_BUILD]);
+    expect(result.current.searchQuery).toBe('urgent');
+  });
+
+  it('applyView with a project that matches no current row narrows to empty without throwing (AC 5)', () => {
+    useSavedViews.mockReturnValue({
+      savedViews: [{ ...SAVED_VIEW, project: 'Nonexistent-Project', typeKeys: [] }],
+      loaded: true,
+      saveView: vi.fn(),
+      renameView: vi.fn(),
+      deleteView: vi.fn(),
+      setDefaultView: vi.fn(),
+    });
+    const { result } = renderHook(() => useOrganizer());
+
+    expect(() => act(() => result.current.applyView('view-1'))).not.toThrow();
+    expect(result.current.selectedProject).toBe('Nonexistent-Project');
+    expect(result.current.filtered).toHaveLength(0);
+  });
+
+  it('does nothing when the view id is not found', () => {
+    useSavedViews.mockReturnValue({
+      savedViews: [],
+      loaded: true,
+      saveView: vi.fn(),
+      renameView: vi.fn(),
+      deleteView: vi.fn(),
+      setDefaultView: vi.fn(),
+    });
+    const { result } = renderHook(() => useOrganizer());
+
+    act(() => result.current.applyView('missing'));
+    expect(result.current.selectedCustomer).toBe('__all__');
+  });
+
+  it('auto-applies the default view exactly once, after both mail and saved views have loaded', async () => {
+    useSavedViews.mockReturnValue({
+      savedViews: [{ ...SAVED_VIEW, isDefault: true }],
+      loaded: true,
+      saveView: vi.fn(),
+      renameView: vi.fn(),
+      deleteView: vi.fn(),
+      setDefaultView: vi.fn(),
+    });
+    const { result } = renderHook(() => useOrganizer());
+
+    await waitFor(() => expect(result.current.selectedCustomer).toBe('Contoso'));
+    expect(result.current.selectedProject).toBe('Alpha');
+
+    // Manually clearing the project afterward must not be re-clobbered by a second auto-apply.
+    act(() => result.current.onSelectProject('Alpha'));
+    expect(result.current.selectedProject).toBeNull();
+  });
+
+  it('does not auto-apply when no view is marked default', async () => {
+    useSavedViews.mockReturnValue({
+      savedViews: [SAVED_VIEW],
+      loaded: true,
+      saveView: vi.fn(),
+      renameView: vi.fn(),
+      deleteView: vi.fn(),
+      setDefaultView: vi.fn(),
+    });
+    const { result } = renderHook(() => useOrganizer());
+
+    // Let any (absent) deferred apply have a chance to run before asserting the negative.
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(result.current.selectedCustomer).toBe('__all__');
+    expect(result.current.selectedProject).toBeNull();
+  });
+
+  it('does not auto-apply before the saved views have finished loading', async () => {
+    useSavedViews.mockReturnValue({
+      savedViews: [],
+      loaded: false,
+      saveView: vi.fn(),
+      renameView: vi.fn(),
+      deleteView: vi.fn(),
+      setDefaultView: vi.fn(),
+    });
+    const { result, rerender } = renderHook(() => useOrganizer());
+    expect(result.current.selectedCustomer).toBe('__all__');
+
+    useSavedViews.mockReturnValue({
+      savedViews: [{ ...SAVED_VIEW, isDefault: true }],
+      loaded: true,
+      saveView: vi.fn(),
+      renameView: vi.fn(),
+      deleteView: vi.fn(),
+      setDefaultView: vi.fn(),
+    });
+    rerender();
+
+    await waitFor(() => expect(result.current.selectedCustomer).toBe('Contoso'));
+  });
+
+  it('passes savedViews, renameView, deleteView, and setDefaultView through unchanged', () => {
+    const renameView = vi.fn();
+    const deleteView = vi.fn();
+    const setDefaultView = vi.fn();
+    useSavedViews.mockReturnValue({
+      savedViews: [SAVED_VIEW],
+      loaded: true,
+      saveView: vi.fn(),
+      renameView,
+      deleteView,
+      setDefaultView,
+    });
+    const { result } = renderHook(() => useOrganizer());
+
+    expect(result.current.savedViews).toEqual([SAVED_VIEW]);
+    expect(result.current.renameView).toBe(renameView);
+    expect(result.current.deleteView).toBe(deleteView);
+    expect(result.current.setDefaultView).toBe(setDefaultView);
   });
 });

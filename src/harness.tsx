@@ -1,4 +1,4 @@
-import { StrictMode } from 'react';
+import { StrictMode, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   FluentProvider,
@@ -10,6 +10,7 @@ import {
   tokens,
 } from '@fluentui/react-components';
 import type { CategorizedEmail } from './models/categorization';
+import type { SavedView } from './models/savedViews';
 import { brandRamp } from './services/theme/brandPalette';
 import { Organizer } from './components/Organizer/Organizer';
 import type { OrganizerData } from './components/Organizer/useOrganizer';
@@ -112,7 +113,34 @@ const filtered = isFiltered
     )
   : emails;
 
-const mockData: OrganizerData = {
+// Saved views (story 126): two seeded rows, one marked default, so the sidebar section is
+// screenshot-able through the harness.
+const savedViews: SavedView[] = [
+  {
+    id: 'view-1',
+    name: 'Contoso failed builds',
+    customer: 'Contoso',
+    project: null,
+    typeKeys: [],
+    searchQuery: '',
+    isDefault: true,
+  },
+  {
+    id: 'view-2',
+    name: 'Adatum reviews',
+    customer: 'Adatum',
+    project: 'Gamma',
+    typeKeys: [],
+    searchQuery: '',
+    isDefault: false,
+  },
+];
+
+// Everything except the subject-search query is static/no-op (a URL-driven stand-in, not live React
+// state — see the harness blind-spot note in `.claude/rules/testing.md`). The search query IS kept as
+// real `useState` here (unlike the other facets) because `EmailList`'s subject-search filtering reads
+// it live regardless of the mock, and AB#56's E2E coverage depends on typing actually filtering rows.
+const mockDataBase: Omit<OrganizerData, 'searchQuery' | 'setSearchQuery'> = {
   status,
   error: '',
   folderName: 'DevOps',
@@ -130,9 +158,18 @@ const mockData: OrganizerData = {
   onToggleType: () => {},
   selectedFilters: buildSelectedFilters(selectedProject, selectedTypeKeys),
   removeFilter: () => {},
+  savedViews,
+  applyView: () => {},
+  saveCurrentView: () => Promise.resolve(),
+  renameView: () => Promise.resolve(),
+  deleteView: () => Promise.resolve(),
+  setDefaultView: () => Promise.resolve(),
 };
 
-const useMockOrganizer = (): OrganizerData => mockData;
+function useMockOrganizer(): OrganizerData {
+  const [searchQuery, setSearchQuery] = useState('');
+  return { ...mockDataBase, searchQuery, setSearchQuery };
+}
 
 // Mirror the app's global full-height reset (App.tsx) so the harness layout matches the real app.
 const useGlobalStyles = makeStaticStyles({
