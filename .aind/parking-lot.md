@@ -57,3 +57,6 @@ Flow-level concern (from lesson 59-coder-20260717T101524Z): overlapping/duplicat
 ## 2026-09-25T08:46:59Z
 In `local` flow, `/aind:plan` sets the status tag to "Plan ready for review" in a step separate from committing the branch and plan. On AB#124 an earlier run was interrupted between the two, leaving the tag pointing at a plan that didn't exist — a later run had to detect this by cross-checking `aind-open-code-pr.sh resume-local` against the stale tag. Consider: should the plugin commit the branch/plan first and set the status tag last, or should the planner always verify branch existence before trusting the tag on a re-run? (from lesson 124-planner-20260925T074928Z)
 
+## 2026-09-25T08:47:05Z
+A planner run on AB#124 saw a `git commit` come back with its supplied message and `Co-Authored-By` trailer replaced by an auto-generated summary. No repo-local hook explains it — `.git/hooks` in this repo holds only `.sample` files, and `core.hooksPath` is not set. A human should check for an editor auto-commit feature, a global git setting, or the plugin's own commit path that might be rewriting messages. (from lesson 124-planner-20260925T072555Z)
+
