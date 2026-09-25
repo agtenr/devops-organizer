@@ -122,6 +122,11 @@ than one terminal in the main checkout, each driving a different story.
 - **Build / run / test / deploy commands:** see the skills in `.claude/skills/`
   (`build`, `run-app`, `test`, `lint`, `e2e`, `deploy`) — commands are defined in `package.json`
   and verified against the scaffolded toolchain (story 29).
+- **Story specs in images attached to the ADO work item.** The attachment URL needs a login, so a
+  web-fetch tool cannot open it. Download it with `curl` using the PAT from `.claude/aind.env`
+  (basic auth, empty username: `-u ":$AZURE_DEVOPS_EXT_PAT"`). Save it to a temp/scratch file,
+  **never into the repo**. There is no Python on this machine; to read pixel colors, use PowerShell
+  `System.Drawing` (e.g. `[System.Drawing.Bitmap]::new($path).GetPixel(x, y)`). (Story 124.)
 
 ### Deployment
 - **Target:** **Azure Static Web Apps**. The production bundle (`dist/`) is published with the

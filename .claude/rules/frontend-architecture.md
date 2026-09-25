@@ -124,6 +124,17 @@
   renders narrower than configured) **and immediately reverts a manual resize** (drag/keyboard
   resizes don't stick). When columns need **fixed or persistent** widths, set
   `resizableColumnsOptions={{ autoFitColumns: false }}`. (Story 54.)
+- **Recoloring a Fluent v9 `Button`'s hover/pressed state: match Fluent's exact selectors.** Fluent
+  styles the pressed state with **two** selectors: `:hover:active` (mouse press) and
+  `:active:focus-visible` (keyboard press). An override must cover **both**, or a keyboard press
+  still shows Fluent's default color. Confirm the selectors in Fluent's compiled CSS (e.g. in
+  `node_modules/@fluentui/react-button`) instead of guessing them. (Story 124: missing the keyboard
+  selector cost an extra review pass.)
+- **A hand-built Fluent `BrandVariants` ramp needs order and contrast checks.** A custom ramp has 16
+  shades (`10`–`160`). It must run from **dark to light, in order**. Shade **`80`** (Fluent's
+  default brand background) must reach **WCAG AA contrast of at least 4.5:1 against white text**.
+  Pin **both** checks in the ramp's unit test when you build it — a test that only checks the 16
+  keys exist and are valid hex lets an out-of-order or low-contrast ramp through. (Story 124.)
 - **ESLint + Prettier**: ESLint (typescript-eslint + react-hooks rules) for correctness,
   Prettier for formatting.
   - **Derived state is computed during render, not synced via an effect.** The `react-hooks`
