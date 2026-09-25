@@ -39,7 +39,6 @@
     "symlinkDirs": []
   },
   "writing": {
-    "level": "plain",
-    "language": "nl"
+    "level": "plain"
   }
 }
