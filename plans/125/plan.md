@@ -129,16 +129,17 @@ The project uses Vitest for unit tests (`.claude/rules/testing.md`).
 
 ## Definition of done
 
-- [ ] `getCachedThemeMode()` / `setCachedThemeMode()` added to `themeService.ts` and unit-tested
-      for the empty, valid, and corrupted cases.
-- [ ] `ThemeProvider`'s initial state comes from the cache when present, verified by a unit test
+- [x] `getCachedThemeMode()` / `setCachedThemeMode()` added to `themeService.ts` and unit-tested
+      for the empty, valid, and corrupted cases (and the storage-throws case, added per review).
+- [x] `ThemeProvider`'s initial state comes from the cache when present, verified by a unit test
       that does not await the Graph fetch.
-- [ ] `toggleTheme` and the post-fetch update both keep the cache in sync with OneDrive.
-- [ ] `App.tsx` renders `ThemeProvider` above `MsalAuthenticationTemplate`, so `AuthLoading` /
+- [x] `toggleTheme` and the post-fetch update both keep the cache in sync with OneDrive.
+- [x] `App.tsx` renders `ThemeProvider` above `MsalAuthenticationTemplate`, so `AuthLoading` /
       `AuthError` render inside `FluentProvider`.
-- [ ] Manually verified in a real browser: with dark theme already selected, reloading the app
-      shows dark immediately, including on the sign-in loading screen.
-- [ ] `npm run test` passes; `npm run lint` clean.
+- [x] Manually verified in a real browser: with dark theme already selected, reloading the app
+      shows dark immediately, including on the sign-in loading screen. Confirmed by Robin Agten
+      on `localhost` (PR #59).
+- [x] `npm run test` passes; `npm run lint` clean.
 
 ## Files/areas affected
 
