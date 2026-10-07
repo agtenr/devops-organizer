@@ -54,7 +54,7 @@
 - **Mail reading (story 36, done):** the app now reads mail, so the least-privilege read-only
   **`Mail.Read`** scope is folded into the **sign-in** request (`loginRequest.scopes`), letting the
   user consent once and the app acquire mail tokens **silently** thereafter via `acquireTokenSilent`
-  (falling back to `acquireTokenRedirect` only on `InteractionRequiredAuthError`). `Mail.ReadBasic`
+  (falling back to `acquireTokenRedirect` only on `InteractionRequiredAuthError`, or when the silent iframe renewal fails with `timed_out` / `block_iframe_reload` — story 128). `Mail.ReadBasic`
   is insufficient because it omits the message body. The target folder is **custom** (not a
   well-known folder), so it is resolved by **display name → id** (`$filter=displayName eq …`) rather
   than the well-known-name shortcut, with the folder name supplied via `VITE_MAIL_FOLDER`.
